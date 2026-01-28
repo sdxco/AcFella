@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treatment Plan - Acoustic Fella</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="logo">🎛️</span>
+            <span class="brand-name">Acoustic Fella</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/room-analysis">Room Analysis</a></li>
+            <li><a href="/treatment-plan" class="active">Treatment Plan</a></li>
+            <li><a href="/speaker-placement">Speaker Placement</a></li>
+            <li><a href="/diy-calculator">DIY Calculator</a></li>
+        </ul>
+    </nav>
+
+    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
+        <h1 style="margin-bottom: 2rem;">Treatment Plan Generator</h1>
+        
+        <!-- Room Input (or load from session) -->
+        <div class="result-card" style="margin-bottom: 2rem;">
+            <h3>📐 Room Configuration</h3>
+            <form id="treatment-form" style="margin-top: 1rem;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="length">Length</label>
+                        <input type="number" id="length" step="0.1" placeholder="5.0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="width">Width</label>
+                        <input type="number" id="width" step="0.1" placeholder="4.0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="height">Height</label>
+                        <input type="number" id="height" step="0.1" placeholder="2.7" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="unit">Unit</label>
+                        <select id="unit">
+                            <option value="metric">Meters</option>
+                            <option value="imperial">Feet</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="room-type">Room Purpose</label>
+                        <select id="room-type">
+                            <option value="mixing_mastering">Mixing & Mastering</option>
+                            <option value="music_production">Music Production</option>
+                            <option value="vocal_recording">Vocal Recording</option>
+                            <option value="podcast">Podcast / Voiceover</option>
+                            <option value="live_recording">Live Recording</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="current-rt60">Current RT60 (optional)</label>
+                        <input type="number" id="current-rt60" step="0.01" placeholder="0.5" min="0" max="3">
+                    </div>
+                    <button type="submit" class="btn-primary">Generate Treatment Plan</button>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Treatment Plan Results -->
+        <div id="plan-results" class="hidden">
+            <!-- Summary -->
+            <div class="result-card" style="margin-bottom: 1.5rem;">
+                <h3>📋 Treatment Plan Summary</h3>
+                <div id="plan-summary" style="margin-top: 1rem;"></div>
+            </div>
+            
+            <!-- Treatment Items by Priority -->
+            <h2 style="margin: 2rem 0 1rem;">Treatment Items (by Priority)</h2>
+            <div id="treatment-items"></div>
+            
+            <!-- Bill of Materials -->
+            <div class="result-card" style="margin-top: 2rem;">
+                <h3>🛒 Bill of Materials</h3>
+                <div id="bill-of-materials" style="margin-top: 1rem;"></div>
+            </div>
+            
+            <!-- Notes and Recommendations -->
+            <div class="result-card" style="margin-top: 1.5rem;">
+                <h3>📝 Important Notes</h3>
+                <div id="plan-notes" style="margin-top: 1rem;"></div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="action-buttons" style="margin-top: 2rem;">
+                <a href="/diy-calculator" class="btn-primary">DIY Construction Guide</a>
+                <button onclick="window.print()" class="btn-secondary">Print Plan</button>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Load saved room data if available
+        const savedData = sessionStorage.getItem('roomData');
+        if (savedData) {
+            const data = JSON.parse(savedData);
+            document.getElementById('length').value = data.length;
+            document.getElementById('width').value = data.width;
+            document.getElementById('height').value = data.height;
+            document.getElementById('unit').value = data.unit;
+            document.getElementById('room-type').value = data.room_type;
+        }
+        
+        // Handle form submission
+        document.getElementById('treatment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const data = {
+                length: parseFloat(document.getElementById('length').value),
+                width: parseFloat(document.getElementById('width').value),
+                height: parseFloat(document.getElementById('height').value),
+                unit: document.getElementById('unit').value,
+                room_type: document.getElementById('room-type').value
+            };
+            
+            const currentRt60 = document.getElementById('current-rt60').value;
+            if (currentRt60) {
+                data.current_t60 = parseFloat(currentRt60);
+            }
+            
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/generate-treatment-plan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayTreatmentPlan(result.treatment_plan, data.unit);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error generating plan: ' + error.message);
+            } finally {
+                btn.textContent = 'Generate Treatment Plan';
+                btn.disabled = false;
+            }
+        });
+        
+        function displayTreatmentPlan(plan, unit) {
+            const unitLabel = unit === 'metric' ? 'm' : 'ft';
+            
+            // Summary
+            document.getElementById('plan-summary').innerHTML = `
+                <p><strong>Room Type:</strong> ${formatRoomType(plan.room_type)}</p>
+                <p><strong>Target RT60:</strong> ${(plan.target_t60 * 1000).toFixed(0)} ms</p>
+                <p><strong>Total Treatment Items:</strong> ${plan.items.length}</p>
+            `;
+            
+            // Treatment Items
+            const itemsHtml = plan.items.map((item, idx) => `
+                <div class="treatment-item" style="margin-bottom: 1rem;">
+                    <div class="treatment-priority" style="background: ${getPriorityColor(item.priority)};">
+                        ${item.priority}
+                    </div>
+                    <div class="treatment-details">
+                        <h4>${formatTreatmentType(item.type)}</h4>
+                        <p class="treatment-location">${formatLocation(item.location)}</p>
+                        <p><strong>Material:</strong> ${item.material}</p>
+                        <p><strong>Dimensions:</strong> 
+                            ${item.dimensions.width}${unitLabel} × ${item.dimensions.height}${unitLabel} × ${item.dimensions.depth}${unitLabel}
+                        </p>
+                        <p><strong>Target Frequencies:</strong> ${item.target_frequencies.map(f => f + 'Hz').join(', ')}</p>
+                        ${item.construction_notes ? `<p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;"><em>${item.construction_notes}</em></p>` : ''}
+                    </div>
+                    <div>
+                        <a href="/diy-calculator?type=${item.type}" class="btn-secondary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">
+                            Build Guide
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+            
+            document.getElementById('treatment-items').innerHTML = itemsHtml;
+            
+            // Bill of Materials
+            const bom = plan.bill_of_materials;
+            let bomHtml = '<div class="materials-list"><table>';
+            bomHtml += '<tr><th>Material</th><th>Total Area</th><th>Panel Count</th></tr>';
+            
+            for (const [key, value] of Object.entries(bom)) {
+                bomHtml += `
+                    <tr>
+                        <td>${value.material}</td>
+                        <td>${value.total_area.toFixed(2)} ${unitLabel}²</td>
+                        <td>${value.count}</td>
+                    </tr>
+                `;
+            }
+            
+            bomHtml += '</table></div>';
+            document.getElementById('bill-of-materials').innerHTML = bomHtml;
+            
+            // Notes
+            document.getElementById('plan-notes').innerHTML = plan.notes.map(note => `
+                <p style="margin-bottom: 0.75rem; padding-left: 1rem; border-left: 2px solid var(--primary);">
+                    ${note}
+                </p>
+            `).join('');
+            
+            // Show results
+            document.getElementById('plan-results').classList.remove('hidden');
+            document.getElementById('plan-results').scrollIntoView({ behavior: 'smooth' });
+        }
+        
+        function formatRoomType(type) {
+            const types = {
+                'mixing_mastering': 'Mixing & Mastering',
+                'music_production': 'Music Production',
+                'vocal_recording': 'Vocal Recording',
+                'podcast': 'Podcast / Voiceover',
+                'live_recording': 'Live Recording'
+            };
+            return types[type] || type;
+        }
+        
+        function formatTreatmentType(type) {
+            const types = {
+                'bass_trap_porous': 'Porous Bass Trap',
+                'bass_trap_membrane': 'Membrane Bass Trap',
+                'bass_trap_helmholtz': 'Helmholtz Resonator',
+                'broadband_absorber': 'Broadband Absorber',
+                'diffuser_qrd': 'QRD Diffuser',
+                'diffuser_skyline': 'Skyline Diffuser',
+                'cloud_absorber': 'Ceiling Cloud'
+            };
+            return types[type] || type;
+        }
+        
+        function formatLocation(location) {
+            const locations = {
+                'front_wall': 'Front Wall',
+                'rear_wall': 'Rear Wall',
+                'left_wall': 'Left Wall',
+                'right_wall': 'Right Wall',
+                'ceiling': 'Ceiling',
+                'floor_wall_corner': 'Floor-Wall Corner',
+                'ceiling_wall_corner': 'Ceiling-Wall Corner',
+                'tri_corner': 'Tri-Corner (Floor-Wall-Wall or Ceiling-Wall-Wall)',
+                'first_reflection_left': 'First Reflection Point (Left)',
+                'first_reflection_right': 'First Reflection Point (Right)',
+                'first_reflection_ceiling': 'First Reflection Point (Ceiling)'
+            };
+            return locations[location] || location;
+        }
+        
+        function getPriorityColor(priority) {
+            switch (priority) {
+                case 1: return '#ef4444';
+                case 2: return '#f59e0b';
+                case 3: return '#22c55e';
+                default: return '#6366f1';
+            }
+        }
+    </script>
+</body>
+</html>

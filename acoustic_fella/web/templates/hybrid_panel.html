@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid Panel Designer - Acoustic Fella</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .mls-visualization {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-top: 1rem;
+            overflow-x: auto;
+        }
+        
+        .mls-pattern {
+            display: flex;
+            gap: 0;
+            height: 200px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .mls-element {
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.6rem;
+            color: white;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            transition: all 0.2s;
+        }
+        
+        .mls-element.slat {
+            background: linear-gradient(180deg, #8B4513 0%, #654321 100%);
+            border-right: 1px solid #5a3520;
+        }
+        
+        .mls-element.gap {
+            background: linear-gradient(180deg, #2a3a4a 0%, #1a2a3a 100%);
+            border-right: 1px solid #0a1a2a;
+        }
+        
+        .mls-element:hover {
+            opacity: 0.8;
+            transform: scaleY(1.02);
+        }
+        
+        .sequence-display {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            word-break: break-all;
+            line-height: 1.8;
+            margin-top: 1rem;
+        }
+        
+        .sequence-display .one {
+            color: #f5a623;
+            font-weight: bold;
+        }
+        
+        .sequence-display .zero {
+            color: #6b7c93;
+        }
+        
+        .cut-list-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .cut-list-table th,
+        .cut-list-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .cut-list-table th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
+        
+        .cut-list-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .cut-list-table .slat-row {
+            background: rgba(139, 69, 19, 0.1);
+        }
+        
+        .cut-list-table .gap-row {
+            background: rgba(42, 58, 74, 0.1);
+        }
+        
+        .info-callout {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+            border-left: 4px solid var(--primary);
+            padding: 1rem 1.5rem;
+            border-radius: 0 8px 8px 0;
+            margin: 1rem 0;
+        }
+        
+        .info-callout h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--primary);
+        }
+        
+        .stats-highlight {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        
+        .stat-highlight-card {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            text-align: center;
+        }
+        
+        .stat-highlight-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .stat-highlight-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-top: 0.25rem;
+        }
+        
+        .order-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        
+        .order-option {
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .order-option:hover {
+            border-color: var(--primary);
+        }
+        
+        .order-option.selected {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .order-option .order-n {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .order-option .order-elements {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+        
+        .construction-notes {
+            background: var(--bg-tertiary);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+        
+        .construction-notes pre {
+            margin: 0;
+            white-space: pre-wrap;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            line-height: 1.6;
+        }
+        
+        .grid-visualization {
+            display: grid;
+            gap: 2px;
+            margin-top: 1rem;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 4px;
+            background: var(--bg-tertiary);
+        }
+        
+        .grid-cell {
+            aspect-ratio: 1;
+            border-radius: 2px;
+        }
+        
+        .grid-cell.slat {
+            background: linear-gradient(135deg, #8B4513 0%, #654321 100%);
+        }
+        
+        .grid-cell.gap {
+            background: linear-gradient(135deg, #2a3a4a 0%, #1a2a3a 100%);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="logo">🎛️</span>
+            <span class="brand-name">Acoustic Fella</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/magic">Magic Analysis</a></li>
+            <li><a href="/room-analysis">Room Analysis</a></li>
+            <li><a href="/diy-calculator">DIY Calculator</a></li>
+            <li><a href="/hybrid-panel-simple">Smart Panel Builder</a></li>
+            <li><a href="/hybrid-panel" class="active">Hybrid Panel (Advanced)</a></li>
+        </ul>
+    </nav>
+
+    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
+        <h1 style="margin-bottom: 0.5rem;">🎯 Hybrid Panel Designer (MLS)</h1>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">
+            Design absorber/reflector hybrid panels using Maximum Length Sequences for optimal sound scattering
+        </p>
+        
+        <!-- Theory Section -->
+        <div class="info-callout">
+            <h4>📚 What is an MLS Hybrid Panel?</h4>
+            <p style="margin: 0.5rem 0;">
+                A hybrid panel combines <strong>reflective slats</strong> (1s) and <strong>absorptive gaps</strong> (0s) 
+                in a <strong>pseudo-random pattern</strong> generated by a Linear Feedback Shift Register (LFSR).
+            </p>
+            <p style="margin: 0.5rem 0;">
+                <strong>Why not just alternate?</strong> Regular patterns create frequency coloration. 
+                MLS patterns have a <em>flat power spectrum</em>, scattering sound evenly across all frequencies.
+            </p>
+            <p style="margin: 0;">
+                <strong>Result:</strong> The panel absorbs bass/mids (through gaps) while reflecting highs (off slats), 
+                keeping your room "alive" without flutter echoes or comb filtering.
+            </p>
+        </div>
+        
+        <!-- Configuration Form -->
+        <div class="result-card" style="margin-bottom: 2rem;">
+            <h3>⚙️ Panel Configuration</h3>
+            <form id="mls-form" style="margin-top: 1rem;">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="panel-width">Panel Width (mm)</label>
+                        <input type="number" id="panel-width" value="1400" min="300" max="5000" required>
+                        <small style="color: var(--text-muted);">e.g., 1400 for 1.4m panel</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="panel-height">Panel Height (mm)</label>
+                        <input type="number" id="panel-height" value="1800" min="300" max="5000" required>
+                        <small style="color: var(--text-muted);">e.g., 1800 for 1.8m panel</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="slat-width">Preferred Slat/Gap Width (mm)</label>
+                        <input type="number" id="slat-width" value="50" min="20" max="200" required>
+                        <small style="color: var(--text-muted);">Will be adjusted to fit MLS sequence exactly</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="slat-thickness">Slat Thickness (mm)</label>
+                        <input type="number" id="slat-thickness" value="20" min="10" max="50" required>
+                        <small style="color: var(--text-muted);">Depth of wood slats</small>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="absorber-depth">Absorber Depth (mm)</label>
+                        <input type="number" id="absorber-depth" value="100" min="50" max="300" required>
+                        <small style="color: var(--text-muted);">Depth of absorption material behind slats</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="layout-type">Layout Type</label>
+                        <select id="layout-type">
+                            <option value="horizontal_1d">1D Horizontal (vertical slats)</option>
+                            <option value="vertical_1d">1D Vertical (horizontal slats)</option>
+                            <option value="grid_2d">2D Grid (checkerboard-like)</option>
+                        </select>
+                        <small style="color: var(--text-muted);">1D is easier to build, 2D diffuses in all directions</small>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="generate-inverse" checked>
+                        Generate inverse pattern for adjacent panels
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="margin-top: 1rem;">
+                    🎲 Generate MLS Pattern
+                </button>
+            </form>
+        </div>
+        
+        <!-- Results Section (hidden initially) -->
+        <div id="mls-results" class="hidden">
+            <!-- MLS Statistics -->
+            <div class="result-card" style="margin-bottom: 2rem;">
+                <h3>📊 MLS Sequence Details</h3>
+                <div id="mls-stats" class="stats-highlight"></div>
+                
+                <h4 style="margin-top: 1.5rem;">Binary Sequence</h4>
+                <div id="sequence-display" class="sequence-display"></div>
+            </div>
+            
+            <!-- Visual Pattern -->
+            <div class="result-card" style="margin-bottom: 2rem;">
+                <h3>🎨 Pattern Visualization</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #8B4513; border-radius: 3px; vertical-align: middle;"></span> 
+                    <strong>Brown = Slat (1)</strong> - Reflects high frequencies
+                    &nbsp;&nbsp;
+                    <span style="display: inline-block; width: 16px; height: 16px; background: #2a3a4a; border-radius: 3px; vertical-align: middle;"></span> 
+                    <strong>Blue = Gap (0)</strong> - Allows absorption
+                </p>
+                <div id="pattern-visualization" class="mls-visualization"></div>
+            </div>
+            
+            <!-- Inverse Pattern -->
+            <div id="inverse-section" class="result-card hidden" style="margin-bottom: 2rem;">
+                <h3>🔄 Inverse Pattern (for adjacent panel)</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                    Use this pattern for the next panel to avoid repetition artifacts.
+                </p>
+                <div id="inverse-visualization" class="mls-visualization"></div>
+            </div>
+            
+            <!-- Bill of Materials -->
+            <div class="result-card" style="margin-bottom: 2rem;">
+                <h3>🛒 Bill of Materials</h3>
+                <div id="bom-summary" class="stats-highlight"></div>
+                
+                <h4 style="margin-top: 1.5rem;">Materials Required</h4>
+                <table class="cut-list-table" id="materials-table">
+                    <thead>
+                        <tr>
+                            <th>Material</th>
+                            <th>Quantity</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- Cut List -->
+            <div class="result-card" style="margin-bottom: 2rem;">
+                <h3>📐 Cut List & Positions</h3>
+                <p style="color: var(--text-muted);">
+                    Position is measured from the left edge of the panel.
+                </p>
+                
+                <div style="max-height: 400px; overflow-y: auto; margin-top: 1rem;">
+                    <table class="cut-list-table" id="cut-list-table">
+                        <thead style="position: sticky; top: 0;">
+                            <tr>
+                                <th>#</th>
+                                <th>Type</th>
+                                <th>Position (mm)</th>
+                                <th>Width (mm)</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Construction Notes -->
+            <div class="result-card" style="margin-bottom: 2rem;">
+                <h3>🔨 Construction Instructions</h3>
+                <div id="construction-notes" class="construction-notes"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('mls-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+            
+            const data = {
+                panel_width_mm: parseFloat(document.getElementById('panel-width').value),
+                panel_height_mm: parseFloat(document.getElementById('panel-height').value),
+                slat_width_mm: parseFloat(document.getElementById('slat-width').value),
+                slat_thickness_mm: parseFloat(document.getElementById('slat-thickness').value),
+                absorber_depth_mm: parseFloat(document.getElementById('absorber-depth').value),
+                layout: document.getElementById('layout-type').value,
+                generate_inverse: document.getElementById('generate-inverse').checked
+            };
+            
+            try {
+                const response = await fetch('/api/design-hybrid-panel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayResults(result);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error generating pattern: ' + error.message);
+            } finally {
+                btn.textContent = '🎲 Generate MLS Pattern';
+                btn.disabled = false;
+            }
+        });
+        
+        function displayResults(data) {
+            const mls = data.mls;
+            const bom = data.bom;
+            
+            // MLS Statistics
+            document.getElementById('mls-stats').innerHTML = `
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">n = ${mls.order}</div>
+                    <div class="stat-highlight-label">MLS Order</div>
+                </div>
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${mls.length}</div>
+                    <div class="stat-highlight-label">Sequence Length</div>
+                </div>
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${mls.element_width_mm} mm</div>
+                    <div class="stat-highlight-label">Element Width</div>
+                </div>
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${mls.num_slats}</div>
+                    <div class="stat-highlight-label">Slats (1s)</div>
+                </div>
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${mls.num_gaps}</div>
+                    <div class="stat-highlight-label">Gaps (0s)</div>
+                </div>
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${(mls.balance_ratio * 100).toFixed(1)}%</div>
+                    <div class="stat-highlight-label">Balance Ratio</div>
+                </div>
+            `;
+            
+            // Sequence display with colored 1s and 0s
+            const sequenceHtml = mls.sequence.map(bit => 
+                bit === 1 
+                    ? '<span class="one">1</span>' 
+                    : '<span class="zero">0</span>'
+            ).join('');
+            document.getElementById('sequence-display').innerHTML = sequenceHtml;
+            
+            // Pattern visualization
+            if (mls.layout_type === 'grid_2d' && mls.grid) {
+                displayGridPattern(mls.grid, 'pattern-visualization');
+            } else {
+                displayLinearPattern(mls.sequence, mls.element_width_mm, 'pattern-visualization');
+            }
+            
+            // Inverse pattern
+            if (data.inverse) {
+                document.getElementById('inverse-section').classList.remove('hidden');
+                displayLinearPattern(data.inverse.sequence, mls.element_width_mm, 'inverse-visualization');
+            } else {
+                document.getElementById('inverse-section').classList.add('hidden');
+            }
+            
+            // BOM summary
+            document.getElementById('bom-summary').innerHTML = `
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${bom.wood_area_m2} m²</div>
+                    <div class="stat-highlight-label">Wood Required</div>
+                </div>
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${bom.fabric_area_m2} m²</div>
+                    <div class="stat-highlight-label">Fabric Required</div>
+                </div>
+                <div class="stat-highlight-card">
+                    <div class="stat-highlight-value">${bom.absorber_area_m2} m²</div>
+                    <div class="stat-highlight-label">Absorber Required</div>
+                </div>
+            `;
+            
+            // Materials table
+            const panelWidth = mls.panel_width_mm;
+            const panelHeight = mls.panel_height_mm;
+            const absorberDepth = parseFloat(document.getElementById('absorber-depth').value);
+            const slatThickness = parseFloat(document.getElementById('slat-thickness').value);
+            
+            document.querySelector('#materials-table tbody').innerHTML = `
+                <tr>
+                    <td>Wood slats (${slatThickness}mm thick)</td>
+                    <td>${bom.num_slats} pieces @ ${bom.element_width_mm}mm × ${panelHeight}mm</td>
+                    <td>Total: ${bom.total_slat_width_mm.toFixed(0)}mm linear</td>
+                </tr>
+                <tr>
+                    <td>Rockwool/Mineral wool (48-96 kg/m³)</td>
+                    <td>${bom.absorber_area_m2} m² × ${absorberDepth}mm thick</td>
+                    <td>Behind slats for absorption</td>
+                </tr>
+                <tr>
+                    <td>Acoustically transparent fabric</td>
+                    <td>${(bom.fabric_area_m2 * 1.2).toFixed(2)} m²</td>
+                    <td>20% extra for wrapping</td>
+                </tr>
+                <tr>
+                    <td>Frame lumber (2x4)</td>
+                    <td>${((panelWidth + panelHeight) * 2 / 1000).toFixed(1)}m</td>
+                    <td>Perimeter frame</td>
+                </tr>
+            `;
+            
+            // Cut list table
+            const cutListHtml = bom.cut_list.map(item => `
+                <tr class="${item.type}-row">
+                    <td>${item.index + 1}</td>
+                    <td><strong>${item.type.toUpperCase()}</strong></td>
+                    <td>${item.position_mm} mm</td>
+                    <td>${item.width_mm} mm</td>
+                </tr>
+            `).join('');
+            document.querySelector('#cut-list-table tbody').innerHTML = cutListHtml;
+            
+            // Construction notes
+            document.getElementById('construction-notes').innerHTML = `<pre>${bom.notes.join('\n')}</pre>`;
+            
+            // Show results
+            document.getElementById('mls-results').classList.remove('hidden');
+            document.getElementById('mls-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        function displayLinearPattern(sequence, elementWidth, containerId) {
+            const container = document.getElementById(containerId);
+            const totalWidth = sequence.length * elementWidth;
+            const scaleFactor = Math.min(1, 800 / totalWidth);
+            
+            const patternHtml = sequence.map((bit, index) => {
+                const type = bit === 1 ? 'slat' : 'gap';
+                const width = Math.max(2, elementWidth * scaleFactor);
+                return `<div class="mls-element ${type}" style="width: ${width}px;" title="${type.toUpperCase()} #${index + 1}"></div>`;
+            }).join('');
+            
+            container.innerHTML = `<div class="mls-pattern">${patternHtml}</div>`;
+        }
+        
+        function displayGridPattern(grid, containerId) {
+            const container = document.getElementById(containerId);
+            const rows = grid.length;
+            const cols = grid[0].length;
+            
+            const cellSize = Math.min(40, 600 / Math.max(rows, cols));
+            
+            let gridHtml = '';
+            for (let row of grid) {
+                for (let cell of row) {
+                    const type = cell === 1 ? 'slat' : 'gap';
+                    gridHtml += `<div class="grid-cell ${type}" style="width: ${cellSize}px; height: ${cellSize}px;"></div>`;
+                }
+            }
+            
+            container.innerHTML = `
+                <div class="grid-visualization" style="grid-template-columns: repeat(${cols}, ${cellSize}px);">
+                    ${gridHtml}
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

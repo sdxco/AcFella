@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Acoustic Fella - Room Acoustics Treatment Software</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="logo">🎛️</span>
+            <span class="brand-name">Acoustic Fella</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/" class="active">Home</a></li>
+            <li><a href="/magic">Complete Analysis</a></li>
+            <li><a href="/room-analysis">Room Analysis</a></li>
+            <li><a href="/treatment-plan">Treatment Plan</a></li>
+            <li><a href="/speaker-placement">Speaker Placement</a></li>
+            <li><a href="/diy-calculator">DIY Calculator</a></li>
+            <li><a href="/hybrid-panel-simple">Smart Panel Builder</a></li>
+        </ul>
+    </nav>
+
+    <main class="hero">
+        <div class="hero-content">
+            <h1>Perfect Your Room Acoustics</h1>
+            <p class="hero-subtitle">
+                Professional acoustic analysis and treatment planning for music production,
+                mixing, mastering, and recording studios.
+            </p>
+            
+            <!-- Big CTA for Magic Analysis -->
+            <div style="text-align: center; margin: 3rem 0;">
+                <a href="/magic" class="btn-primary" style="padding: 1.5rem 3rem; font-size: 1.3rem; display: inline-block; text-decoration: none;">
+                    🎯 Complete Room Analysis
+                </a>
+                <p style="color: var(--text-muted); margin-top: 1rem;">
+                    One comprehensive analysis - from dimensions to treatment plan
+                </p>
+            </div>
+            
+            <div class="quick-start">
+                <h2>Quick Room Check</h2>
+                <form id="quick-analysis-form" class="quick-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="length">Length</label>
+                            <input type="number" id="length" step="0.01" placeholder="5.0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="width">Width</label>
+                            <input type="number" id="width" step="0.01" placeholder="4.0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="height">Height</label>
+                            <input type="number" id="height" step="0.01" placeholder="2.7" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="unit">Unit</label>
+                            <select id="unit">
+                                <option value="metric">Meters</option>
+                                <option value="imperial">Feet</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="room-type">Room Purpose</label>
+                            <select id="room-type">
+                                <option value="mixing_mastering">Mixing & Mastering</option>
+                                <option value="music_production">Music Production</option>
+                                <option value="vocal_recording">Vocal Recording</option>
+                                <option value="podcast">Podcast / Voiceover</option>
+                                <option value="live_recording">Live Recording</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-primary">Quick Check</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <section id="results" class="results-section hidden">
+        <div class="container">
+            <h2>Analysis Results</h2>
+            
+            <div class="results-grid">
+                <!-- Room Info Card -->
+                <div class="result-card">
+                    <h3>📐 Room Information</h3>
+                    <div id="room-info" class="result-content"></div>
+                </div>
+                
+                <!-- Schroeder Frequency Card -->
+                <div class="result-card">
+                    <h3>📊 Schroeder Frequency</h3>
+                    <div id="schroeder-info" class="result-content"></div>
+                </div>
+                
+                <!-- Modal Analysis Card -->
+                <div class="result-card">
+                    <h3>🔊 Modal Analysis</h3>
+                    <div id="modal-info" class="result-content"></div>
+                </div>
+                
+                <!-- Speaker Placement Card -->
+                <div class="result-card">
+                    <h3>🔈 Speaker Placement</h3>
+                    <div id="speaker-info" class="result-content"></div>
+                </div>
+            </div>
+            
+            <!-- Room Modes Chart -->
+            <div class="chart-container">
+                <h3>Room Mode Distribution</h3>
+                <canvas id="modes-chart"></canvas>
+            </div>
+            
+            <!-- Quick Recommendations -->
+            <div class="recommendations-section">
+                <h3>Quick Recommendations</h3>
+                <div id="recommendations" class="recommendations-grid"></div>
+            </div>
+            
+            <div class="action-buttons">
+                <a href="/treatment-plan" class="btn-primary">Generate Full Treatment Plan</a>
+                <a href="/diy-calculator" class="btn-secondary">DIY Panel Calculator</a>
+            </div>
+        </div>
+    </section>
+
+    <section class="features">
+        <div class="container">
+            <h2>Features</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📏</div>
+                    <h3>Room Mode Analysis</h3>
+                    <p>Calculate axial, tangential, and oblique room modes using the Rayleigh equation. Identify problematic frequencies.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📈</div>
+                    <h3>REW Integration</h3>
+                    <p>Import Room EQ Wizard measurements for detailed frequency response and impulse response analysis.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Treatment Planning</h3>
+                    <p>Get specific recommendations for bass traps, absorbers, and diffusers with exact placement locations.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔧</div>
+                    <h3>DIY Construction</h3>
+                    <p>Detailed build guides for broadband absorbers, Helmholtz resonators, QRD diffusers, and more.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">✨</div>
+                    <h3>Smart Panel Builder</h3>
+                    <p>Build hybrid absorber/reflector panels with smart random patterns. Perfect for beginners!</p>
+                    <a href="/hybrid-panel-simple" class="feature-link">Start Building →</a>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔈</div>
+                    <h3>Speaker Placement</h3>
+                    <p>Optimal speaker and listener positioning using the 38% rule, SBIR analysis, and stereo geometry.</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📊</div>
+                    <h3>Target RT60</h3>
+                    <p>Calculate required absorption to achieve 200-300ms reverberation time for professional studios.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div class="container">
+            <p>Acoustic Fella - Based on Master Handbook of Acoustics & Springer Handbook of Acoustics</p>
+            <p>Target: ±3dB frequency response (20Hz-20kHz) | RT60: 200-300ms</p>
+        </div>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

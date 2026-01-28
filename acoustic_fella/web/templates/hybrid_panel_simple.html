@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Sound Panel Builder - Acoustic Fella</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .simple-hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 3rem 2rem;
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        
+        .simple-hero h1 {
+            margin: 0 0 1rem 0;
+            font-size: 2.5rem;
+        }
+        
+        .simple-hero p {
+            font-size: 1.2rem;
+            opacity: 0.95;
+            max-width: 700px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .preset-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+        
+        .preset-card {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .preset-card:hover {
+            border-color: var(--accent);
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.2);
+        }
+        
+        .preset-card.selected {
+            border-color: var(--accent);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+        
+        .preset-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+        }
+        
+        .preset-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+        
+        .preset-size {
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+        
+        .preset-use {
+            color: var(--accent);
+            font-size: 0.9rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border);
+        }
+        
+        .explainer-box {
+            background: linear-gradient(135deg, #f6f8fb 0%, #e9f0f7 100%);
+            border-left: 4px solid var(--accent);
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+        
+        .explainer-box h3 {
+            margin: 0 0 1rem 0;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .explainer-box p {
+            margin: 0.5rem 0;
+            line-height: 1.7;
+            color: var(--text-secondary);
+        }
+        
+        .benefit-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .benefit-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .benefit-icon {
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+        
+        .benefit-text {
+            flex: 1;
+        }
+        
+        .benefit-text strong {
+            display: block;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .benefit-text span {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        
+        .visual-comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .comparison-item {
+            text-align: center;
+        }
+        
+        .comparison-visual {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1rem;
+            min-height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .bad .comparison-visual {
+            border-color: #ef4444;
+            background: rgba(239, 68, 68, 0.05);
+        }
+        
+        .good .comparison-visual {
+            border-color: #10b981;
+            background: rgba(16, 185, 129, 0.05);
+        }
+        
+        .pattern-demo {
+            font-family: monospace;
+            font-size: 1.5rem;
+            letter-spacing: 0.2rem;
+            line-height: 1.8;
+        }
+        
+        .comparison-label {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .bad .comparison-label {
+            color: #ef4444;
+        }
+        
+        .good .comparison-label {
+            color: #10b981;
+        }
+        
+        .comparison-desc {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+        
+        .step-wizard {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+        }
+        
+        .step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+        }
+        
+        .step:not(:last-child)::after {
+            content: '→';
+            position: absolute;
+            right: -30px;
+            top: 20px;
+            font-size: 2rem;
+            color: var(--accent);
+            opacity: 0.3;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            line-height: 40px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .step-label {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+        
+        .generate-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 1.25rem 3rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+            transition: all 0.3s ease;
+            margin: 2rem auto;
+            display: block;
+        }
+        
+        .generate-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
+        }
+        
+        .generate-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .results-preview {
+            margin-top: 3rem;
+            padding-top: 3rem;
+            border-top: 2px solid var(--border);
+        }
+        
+        .pattern-preview-box {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }
+        
+        .pattern-strip {
+            display: flex;
+            gap: 3px;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        
+        .pattern-element {
+            min-width: 30px;
+            height: 100px;
+            border-radius: 4px;
+            transition: transform 0.2s;
+        }
+        
+        .pattern-element.slat {
+            background: linear-gradient(135deg, #8B4513 0%, #654321 100%);
+        }
+        
+        .pattern-element.gap {
+            background: linear-gradient(135deg, #2a3a4a 0%, #1a2a3a 100%);
+        }
+        
+        .pattern-element:hover {
+            transform: scale(1.05);
+        }
+        
+        .shopping-list {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }
+        
+        .shopping-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+            background: white;
+            margin-bottom: 0.5rem;
+            border-radius: 8px;
+        }
+        
+        .shopping-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .shopping-item-name {
+            font-weight: 500;
+            color: #1a1a1a;
+            font-size: 1rem;
+        }
+        
+        .shopping-item-amount {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 1rem;
+            text-align: right;
+        }
+        
+        .instruction-steps {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+        }
+        
+        .instruction-step {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        .instruction-step:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .step-num {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            line-height: 32px;
+            text-align: center;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .step-content {
+            flex: 1;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .step-desc {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+        
+        @media (max-width: 768px) {
+            .visual-comparison {
+                grid-template-columns: 1fr;
+            }
+            
+            .step-wizard {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .step:not(:last-child)::after {
+                content: '↓';
+                right: auto;
+                top: auto;
+                bottom: -25px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="logo">🎛️</span>
+            <span class="brand-name">Acoustic Fella</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/magic">Magic Analysis</a></li>
+            <li><a href="/room-analysis">Room Analysis</a></li>
+            <li><a href="/diy-calculator">DIY Calculator</a></li>
+            <li><a href="/hybrid-panel-simple" class="active">Smart Panel Builder</a></li>
+        </ul>
+    </nav>
+
+    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
+        <div class="simple-hero">
+            <h1>🎯 Smart Sound Panel Builder</h1>
+            <p>
+                Build the perfect wall panel that absorbs annoying echoes while keeping your room sounding natural.
+                No acoustic knowledge required—just follow the steps!
+            </p>
+        </div>
+        
+        <!-- What is this? -->
+        <div class="explainer-box">
+            <h3>🤔 What does this panel do?</h3>
+            <p>
+                Imagine your room has too much echo—voices sound harsh and music gets muddy. 
+                Most people use foam panels that absorb ALL sound, making the room feel dead and unnatural.
+            </p>
+            <p style="margin-top: 1rem;">
+                <strong>This smart panel is different:</strong> It has wooden slats and gaps arranged in a special random pattern. 
+                Some sounds bounce off the wood (keeping life in the room), while other sounds get absorbed by the material behind 
+                the gaps (removing the annoying echo). It's like having the best of both worlds!
+            </p>
+        </div>
+        
+        <!-- Visual Comparison -->
+        <h2 style="text-align: center; margin: 3rem 0 1.5rem 0;">Why Random Patterns Matter</h2>
+        <div class="visual-comparison">
+            <div class="comparison-item bad">
+                <div class="comparison-visual">
+                    <div class="pattern-demo">
+                        ▓░▓░▓░▓░<br>
+                        ▓░▓░▓░▓░<br>
+                        ▓░▓░▓░▓░
+                    </div>
+                </div>
+                <div class="comparison-label">❌ Regular Pattern (Bad)</div>
+                <div class="comparison-desc">Creates weird frequency holes, sounds unnatural and colored</div>
+            </div>
+            
+            <div class="comparison-item good">
+                <div class="comparison-visual">
+                    <div class="pattern-demo">
+                        ▓▓░▓░░▓▓<br>
+                        ░▓▓░▓░▓░<br>
+                        ▓░░▓▓▓░▓
+                    </div>
+                </div>
+                <div class="comparison-label">✅ Smart Random Pattern (Good)</div>
+                <div class="comparison-desc">Smooth, natural sound across all frequencies</div>
+            </div>
+        </div>
+        
+        <!-- Benefits -->
+        <div class="benefit-list">
+            <div class="benefit-item">
+                <div class="benefit-icon">🎵</div>
+                <div class="benefit-text">
+                    <strong>Natural Sound</strong>
+                    <span>Room stays lively, not dead like with foam</span>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">💰</div>
+                <div class="benefit-text">
+                    <strong>Budget Friendly</strong>
+                    <span>Wood + rockwool is cheaper than fancy panels</span>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">🔨</div>
+                <div class="benefit-text">
+                    <strong>Easy to Build</strong>
+                    <span>Simple cuts, basic tools, weekend project</span>
+                </div>
+            </div>
+            <div class="benefit-item">
+                <div class="benefit-icon">🎨</div>
+                <div class="benefit-text">
+                    <strong>Looks Great</strong>
+                    <span>Modern wood slat design that you'll want to show off</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Step Wizard -->
+        <h2 style="text-align: center; margin: 3rem 0 1rem 0;">Three Simple Steps</h2>
+        <div class="step-wizard">
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-label">Choose Panel Size</div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-label">Generate Pattern</div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-label">Build It!</div>
+            </div>
+        </div>
+        
+        <!-- Preset Selection -->
+        <h2>Step 1: Choose Your Panel Size</h2>
+        <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+            Pick a preset based on your space. Don't worry—all sizes work great!
+        </p>
+        
+        <div class="preset-cards">
+            <div class="preset-card" data-width="600" data-height="600">
+                <div class="preset-icon">📦</div>
+                <div class="preset-title">Small Panel</div>
+                <div class="preset-size">600mm × 600mm (2ft × 2ft)</div>
+                <p style="color: var(--text-muted); margin: 0.5rem 0; font-size: 0.9rem;">
+                    Perfect for corners, small rooms, or testing before making more
+                </p>
+                <div class="preset-use">
+                    <strong>Best for:</strong> Bedrooms, small studios, spot treatment
+                </div>
+            </div>
+            
+            <div class="preset-card" data-width="1200" data-height="600">
+                <div class="preset-icon">📐</div>
+                <div class="preset-title">Medium Panel</div>
+                <div class="preset-size">1200mm × 600mm (4ft × 2ft)</div>
+                <p style="color: var(--text-muted); margin: 0.5rem 0; font-size: 0.9rem;">
+                    The most popular size—great balance of coverage and buildability
+                </p>
+                <div class="preset-use">
+                    <strong>Best for:</strong> Home studios, living rooms, first reflection points
+                </div>
+            </div>
+            
+            <div class="preset-card" data-width="1200" data-height="1200">
+                <div class="preset-icon">🏢</div>
+                <div class="preset-title">Large Panel</div>
+                <div class="preset-size">1200mm × 1200mm (4ft × 4ft)</div>
+                <p style="color: var(--text-muted); margin: 0.5rem 0; font-size: 0.9rem;">
+                    Maximum impact for big walls and serious acoustic treatment
+                </p>
+                <div class="preset-use">
+                    <strong>Best for:</strong> Recording studios, large rooms, full wall coverage
+                </div>
+            </div>
+        </div>
+        
+        <!-- Custom Size Option -->
+        <div style="text-align: center; margin: 2rem 0;">
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                Or enter your own size:
+            </p>
+            <div style="display: inline-flex; gap: 1rem; align-items: center;">
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-muted);">Width (mm)</label>
+                    <input type="number" id="custom-width" min="400" max="2400" step="50" placeholder="1200" 
+                           style="padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; width: 120px; font-size: 1rem;">
+                </div>
+                <div style="padding-top: 1.5rem; color: var(--text-muted);">×</div>
+                <div>
+                    <label style="display: block; margin-bottom: 0.25rem; font-size: 0.9rem; color: var(--text-muted);">Height (mm)</label>
+                    <input type="number" id="custom-height" min="400" max="2400" step="50" placeholder="600" 
+                           style="padding: 0.75rem; border: 2px solid var(--border); border-radius: 8px; width: 120px; font-size: 1rem;">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Generate Button -->
+        <h2 style="text-align: center; margin: 3rem 0 1rem 0;">Step 2: Generate Your Pattern</h2>
+        <button id="generate-btn" class="generate-btn" disabled>
+            <span>🎲</span>
+            <span>Generate My Smart Panel Design</span>
+        </button>
+        <p style="text-align: center; color: var(--text-muted); margin-top: 1rem; font-size: 0.95rem;">
+            Select a size first, then click to create your unique pattern
+        </p>
+        
+        <!-- Results Section -->
+        <div id="results" class="results-preview" style="display: none;">
+            <h2 style="text-align: center; margin-bottom: 2rem;">Step 3: Your Complete Build Plan</h2>
+            
+            <!-- Pattern Preview -->
+            <div class="pattern-preview-box">
+                <h3 style="margin: 0 0 1rem 0;">🎨 Your Unique Pattern</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.95rem;">
+                    This is what your panel will look like. Brown = wood slats (reflects sound), Dark = gaps with insulation (absorbs sound)
+                </p>
+                <div id="pattern-strip" class="pattern-strip"></div>
+                <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px;">
+                    <div style="display: flex; justify-content: space-around; text-align: center;">
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: var(--accent);" id="stat-slats">-</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">Wood Slats</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: var(--accent);" id="stat-gaps">-</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">Absorption Gaps</div>
+                        </div>
+                        <div>
+                            <div style="font-size: 1.5rem; font-weight: 600; color: var(--accent);" id="stat-balance">-</div>
+                            <div style="font-size: 0.85rem; color: var(--text-muted);">Reflection/Absorption</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Shopping List -->
+            <div class="shopping-list">
+                <h3 style="margin: 0 0 1.5rem 0;">🛒 Shopping List</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1.5rem; font-size: 0.95rem;">
+                    Everything you need from the hardware store:
+                </p>
+                <div id="shopping-items"></div>
+            </div>
+            
+            <!-- Build Instructions -->
+            <div class="instruction-steps">
+                <h3 style="margin: 0 0 1.5rem 0;">🔨 How to Build It</h3>
+                <div class="instruction-step">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <div class="step-title">Cut the Frame</div>
+                        <div class="step-desc">
+                            Cut your plywood or MDF to the panel size. This is your backing board. 
+                            Sand the edges smooth.
+                        </div>
+                    </div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <div class="step-title">Add Spacers (Optional but Recommended)</div>
+                        <div class="step-desc">
+                            Attach 1-2 inch wooden strips around the edges to create an air gap behind the panel. 
+                            This helps with bass absorption. Use wood glue and screws.
+                        </div>
+                    </div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <div class="step-title">Fill with Insulation</div>
+                        <div class="step-desc">
+                            Cut rockwool insulation to fit the entire panel. Place it on the backing board. 
+                            Don't compress it—fluffy is good!
+                        </div>
+                    </div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <div class="step-title">Cover with Fabric</div>
+                        <div class="step-desc">
+                            Stretch acoustically transparent fabric (like burlap or speaker cloth) over the insulation. 
+                            Staple it to the back of the frame. Keep it tight and smooth.
+                        </div>
+                    </div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">5</div>
+                    <div class="step-content">
+                        <div class="step-title">Mark Slat Positions</div>
+                        <div class="step-desc">
+                            Using a ruler and pencil, mark where each wood slat goes according to the cut list below. 
+                            Take your time—accuracy matters!
+                        </div>
+                    </div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">6</div>
+                    <div class="step-content">
+                        <div class="step-title">Attach Wood Slats</div>
+                        <div class="step-desc">
+                            Cut wood slats to height. Attach them at the marked positions using wood glue and finish nails 
+                            or a brad nailer. Make sure they're straight and flush.
+                        </div>
+                    </div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">7</div>
+                    <div class="step-content">
+                        <div class="step-title">Finishing Touches</div>
+                        <div class="step-desc">
+                            Sand any rough edges. Stain or paint the wood if desired (do this before attaching). 
+                            Add French cleats or D-rings to the back for mounting.
+                        </div>
+                    </div>
+                </div>
+                <div class="instruction-step">
+                    <div class="step-num">8</div>
+                    <div class="step-content">
+                        <div class="step-title">Mount and Enjoy!</div>
+                        <div class="step-desc">
+                            Hang your panel on the wall. Put it at ear level where you sit or stand most. 
+                            Add more panels as needed—typically 20-40% wall coverage is ideal.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Cut List -->
+            <div style="background: var(--bg-secondary); border-radius: 12px; padding: 2rem; margin: 1.5rem 0;">
+                <h3 style="margin: 0 0 1rem 0;">📏 Detailed Cut List</h3>
+                <p style="color: var(--text-muted); margin-bottom: 1rem; font-size: 0.95rem;">
+                    Exact positions for each slat. Measure from the left edge:
+                </p>
+                <div id="cut-list" style="max-height: 400px; overflow-y: auto;"></div>
+            </div>
+            
+            <!-- Pro Tips -->
+            <div class="explainer-box">
+                <h3>💡 Pro Tips</h3>
+                <ul style="margin: 0.5rem 0 0 1.5rem; line-height: 2;">
+                    <li><strong>Slat thickness:</strong> 15-20mm works great. Thinner looks modern, thicker is more traditional.</li>
+                    <li><strong>Wood type:</strong> Pine is cheap and easy. Oak or walnut looks premium.</li>
+                    <li><strong>Insulation:</strong> Rockwool 60-80 density (48-96 kg/m³) is ideal. Don't use cheap foam!</li>
+                    <li><strong>Fabric:</strong> Must be breathable (acoustically transparent). Speaker grille cloth or burlap works perfect.</li>
+                    <li><strong>Where to place:</strong> First reflection points (side walls at mirror point from speakers), behind listening position, or any wall with flutter echo.</li>
+                    <li><strong>How many:</strong> Start with 2-4 panels. Add more if room still sounds too live.</li>
+                </ul>
+            </div>
+            
+            <!-- Advanced Options -->
+            <div style="text-align: center; margin: 3rem 0;">
+                <p style="color: var(--text-muted); margin-bottom: 1rem;">
+                    Want more control? Try the 
+                    <a href="/hybrid-panel" style="color: var(--accent); text-decoration: underline;">advanced designer</a>
+                    with technical options.
+                </p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        let selectedWidth = null;
+        let selectedHeight = null;
+        
+        // Preset card selection
+        document.querySelectorAll('.preset-card').forEach(card => {
+            card.addEventListener('click', () => {
+                document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('selected'));
+                card.classList.add('selected');
+                
+                selectedWidth = parseFloat(card.dataset.width);
+                selectedHeight = parseFloat(card.dataset.height);
+                
+                document.getElementById('custom-width').value = '';
+                document.getElementById('custom-height').value = '';
+                
+                document.getElementById('generate-btn').disabled = false;
+            });
+        });
+        
+        // Custom size inputs
+        document.getElementById('custom-width').addEventListener('input', updateCustomSize);
+        document.getElementById('custom-height').addEventListener('input', updateCustomSize);
+        
+        function updateCustomSize() {
+            const width = parseFloat(document.getElementById('custom-width').value);
+            const height = parseFloat(document.getElementById('custom-height').value);
+            
+            if (width && height && width >= 400 && width <= 2400 && height >= 400 && height <= 2400) {
+                selectedWidth = width;
+                selectedHeight = height;
+                document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('selected'));
+                document.getElementById('generate-btn').disabled = false;
+            } else {
+                if (!document.querySelector('.preset-card.selected')) {
+                    document.getElementById('generate-btn').disabled = true;
+                }
+            }
+        }
+        
+        // Generate button
+        document.getElementById('generate-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('generate-btn');
+            btn.disabled = true;
+            btn.innerHTML = '<span>⏳</span><span>Generating Your Design...</span>';
+            
+            try {
+                const response = await fetch('/api/design-hybrid-panel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        panel_width_mm: selectedWidth,
+                        panel_height_mm: selectedHeight,
+                        slat_width_mm: 50,
+                        slat_thickness_mm: 20,
+                        absorber_depth_mm: 100,
+                        layout: 'horizontal_1d',
+                        generate_inverse: false
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayResults(result);
+                    document.getElementById('results').style.display = 'block';
+                    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                    alert('Oops! Something went wrong: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error generating design: ' + error.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<span>🎲</span><span>Generate My Smart Panel Design</span>';
+            }
+        });
+        
+        function displayResults(data) {
+            const mls = data.mls;
+            const bom = data.bom;
+            
+            // Pattern strip
+            const strip = document.getElementById('pattern-strip');
+            strip.innerHTML = '';
+            mls.sequence.forEach((val, idx) => {
+                const elem = document.createElement('div');
+                elem.className = `pattern-element ${val === 1 ? 'slat' : 'gap'}`;
+                elem.title = val === 1 ? 'Wood Slat (Reflects)' : 'Absorption Gap';
+                strip.appendChild(elem);
+            });
+            
+            // Stats
+            document.getElementById('stat-slats').textContent = mls.num_slats;
+            document.getElementById('stat-gaps').textContent = mls.num_gaps;
+            document.getElementById('stat-balance').textContent = 
+                `${(mls.balance_ratio * 100).toFixed(0)}% / ${((1 - mls.balance_ratio) * 100).toFixed(0)}%`;
+            
+            // Shopping list
+            const shopping = document.getElementById('shopping-items');
+            shopping.innerHTML = `
+                <div class="shopping-item">
+                    <div class="shopping-item-name">🪵 Wood Slats (pine, 20mm thick)</div>
+                    <div class="shopping-item-amount">${(bom.wood_area_m2).toFixed(2)} m² (about ${mls.num_slats} pieces at ${mls.panel_height_mm}mm long)</div>
+                </div>
+                <div class="shopping-item">
+                    <div class="shopping-item-name">🧱 Rockwool Insulation (60-80 density, 50-100mm thick)</div>
+                    <div class="shopping-item-amount">${(bom.absorber_area_m2).toFixed(2)} m²</div>
+                </div>
+                <div class="shopping-item">
+                    <div class="shopping-item-name">🎨 Acoustic Fabric (burlap or speaker cloth)</div>
+                    <div class="shopping-item-amount">${(bom.fabric_area_m2).toFixed(2)} m²</div>
+                </div>
+                <div class="shopping-item">
+                    <div class="shopping-item-name">🪵 Plywood or MDF Backing (12-18mm thick)</div>
+                    <div class="shopping-item-amount">${((mls.panel_width_mm / 1000) * (mls.panel_height_mm / 1000)).toFixed(2)} m² (${mls.panel_width_mm}mm × ${mls.panel_height_mm}mm)</div>
+                </div>
+                <div class="shopping-item">
+                    <div class="shopping-item-name">🔨 Wood Glue, Finish Nails/Brad Nails, Staples</div>
+                    <div class="shopping-item-amount">Standard hardware</div>
+                </div>
+            `;
+            
+            // Cut list
+            const cutList = document.getElementById('cut-list');
+            cutList.innerHTML = '<table style="width: 100%; border-collapse: collapse;">' +
+                '<thead><tr style="background: var(--bg-tertiary); font-weight: 600;">' +
+                '<th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border);">#</th>' +
+                '<th style="padding: 0.75rem; text-align: left; border-bottom: 2px solid var(--border);">Type</th>' +
+                '<th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Position from Left (mm)</th>' +
+                '<th style="padding: 0.75rem; text-align: right; border-bottom: 2px solid var(--border);">Width (mm)</th>' +
+                '</tr></thead><tbody>' +
+                bom.cut_list.map((item, idx) => {
+                    const bgColor = item.type === 'slat' ? 'rgba(139, 69, 19, 0.1)' : 'rgba(42, 58, 74, 0.1)';
+                    const icon = item.type === 'slat' ? '🪵' : '⬛';
+                    const label = item.type === 'slat' ? 'Wood Slat' : 'Gap (no wood)';
+                    return `<tr style="background: ${bgColor};">
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${idx + 1}</td>
+                        <td style="padding: 0.75rem; border-bottom: 1px solid var(--border);">${icon} ${label}</td>
+                        <td style="padding: 0.75rem; text-align: right; border-bottom: 1px solid var(--border); font-family: monospace;">${item.position_mm.toFixed(1)}</td>
+                        <td style="padding: 0.75rem; text-align: right; border-bottom: 1px solid var(--border); font-family: monospace;">${item.width_mm.toFixed(1)}</td>
+                    </tr>`;
+                }).join('') +
+                '</tbody></table>';
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIY Calculator - Acoustic Fella</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="logo">🎛️</span>
+            <span class="brand-name">Acoustic Fella</span>
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">Home</a></li>
+            <li><a href="/room-analysis">Room Analysis</a></li>
+            <li><a href="/treatment-plan">Treatment Plan</a></li>
+            <li><a href="/speaker-placement">Speaker Placement</a></li>
+            <li><a href="/diy-calculator" class="active">DIY Calculator</a></li>
+        </ul>
+    </nav>
+
+    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
+        <h1 style="margin-bottom: 0.5rem;">DIY Panel Calculator</h1>
+        <p style="color: var(--text-muted); margin-bottom: 2rem;">Design and build your own acoustic treatment panels</p>
+        
+        <!-- Panel Type Selection -->
+        <div class="result-card" style="margin-bottom: 2rem;">
+            <h3>🔧 Panel Type</h3>
+            <div class="panel-type-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                <label class="panel-type-option" data-type="broadband_absorber">
+                    <input type="radio" name="panel-type" value="broadband_absorber" checked>
+                    <div class="panel-type-content">
+                        <span class="panel-icon">📦</span>
+                        <strong>Broadband Absorber</strong>
+                        <span class="panel-desc">Standard absorption panel for mid/high frequencies</span>
+                    </div>
+                </label>
+                
+                <label class="panel-type-option" data-type="corner_bass_trap">
+                    <input type="radio" name="panel-type" value="corner_bass_trap">
+                    <div class="panel-type-content">
+                        <span class="panel-icon">📐</span>
+                        <strong>Corner Bass Trap</strong>
+                        <span class="panel-desc">Tri-corner mounted for low frequency absorption</span>
+                    </div>
+                </label>
+                
+                <label class="panel-type-option" data-type="helmholtz_resonator">
+                    <input type="radio" name="panel-type" value="helmholtz_resonator">
+                    <div class="panel-type-content">
+                        <span class="panel-icon">🎯</span>
+                        <strong>Helmholtz Resonator</strong>
+                        <span class="panel-desc">Tuned absorber for specific problem frequencies</span>
+                    </div>
+                </label>
+                
+                <label class="panel-type-option" data-type="qrd_diffuser">
+                    <input type="radio" name="panel-type" value="qrd_diffuser">
+                    <div class="panel-type-content">
+                        <span class="panel-icon">🌊</span>
+                        <strong>QRD Diffuser</strong>
+                        <span class="panel-desc">Quadratic residue diffuser for scattering sound</span>
+                    </div>
+                </label>
+                
+                <label class="panel-type-option" data-type="membrane_absorber">
+                    <input type="radio" name="panel-type" value="membrane_absorber">
+                    <div class="panel-type-content">
+                        <span class="panel-icon">🎪</span>
+                        <strong>Membrane Absorber</strong>
+                        <span class="panel-desc">Panel resonator for low-mid frequency absorption</span>
+                    </div>
+                </label>
+            </div>
+        </div>
+        
+        <!-- Configuration Form -->
+        <div class="result-card" style="margin-bottom: 2rem;">
+            <h3>⚙️ Configuration</h3>
+            <form id="panel-form" style="margin-top: 1rem;">
+                <!-- Common fields -->
+                <div id="common-fields">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="panel-width">Panel Width</label>
+                            <input type="number" id="panel-width" step="0.01" value="0.6" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="panel-height">Panel Height</label>
+                            <input type="number" id="panel-height" step="0.01" value="1.2" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="panel-unit">Unit</label>
+                            <select id="panel-unit">
+                                <option value="metric">Meters</option>
+                                <option value="imperial">Feet</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Broadband absorber specific -->
+                <div id="broadband-fields" class="panel-specific-fields">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="absorber-thickness">Insulation Thickness (mm/in)</label>
+                            <input type="number" id="absorber-thickness" step="1" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="air-gap">Air Gap Behind (mm/in)</label>
+                            <input type="number" id="air-gap" step="1" value="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="absorber-material">Insulation Type</label>
+                            <select id="absorber-material">
+                                <option value="rockwool">Rockwool / Stone Wool</option>
+                                <option value="fiberglass">Fiberglass (OC 703)</option>
+                                <option value="polyester">Polyester Fiber</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Helmholtz specific -->
+                <div id="helmholtz-fields" class="panel-specific-fields hidden">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="target-frequency">Target Frequency (Hz)</label>
+                            <input type="number" id="target-frequency" step="1" value="80">
+                        </div>
+                        <div class="form-group">
+                            <label for="cavity-depth">Cavity Depth (mm/in)</label>
+                            <input type="number" id="cavity-depth" step="1" value="200">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- QRD Diffuser specific -->
+                <div id="qrd-fields" class="panel-specific-fields hidden">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="design-frequency">Design Frequency (Hz)</label>
+                            <input type="number" id="design-frequency" step="1" value="500">
+                        </div>
+                        <div class="form-group">
+                            <label for="prime-number">Prime Number (wells)</label>
+                            <select id="prime-number">
+                                <option value="7">7 (simpler)</option>
+                                <option value="11">11 (standard)</option>
+                                <option value="13">13 (better diffusion)</option>
+                                <option value="17">17 (complex)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Membrane absorber specific -->
+                <div id="membrane-fields" class="panel-specific-fields hidden">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="membrane-target">Target Frequency (Hz)</label>
+                            <input type="number" id="membrane-target" step="1" value="100">
+                        </div>
+                        <div class="form-group">
+                            <label for="membrane-material">Membrane Material</label>
+                            <select id="membrane-material">
+                                <option value="plywood">Plywood (3mm)</option>
+                                <option value="mdf">MDF (3mm)</option>
+                                <option value="osb">OSB</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-primary" style="margin-top: 1rem;">Generate Design</button>
+            </form>
+        </div>
+        
+        <!-- Results Section -->
+        <div id="panel-results" class="hidden">
+            <!-- Panel Specifications -->
+            <div class="result-card" style="margin-bottom: 1.5rem;">
+                <h3>📐 Panel Specifications</h3>
+                <div id="panel-specs" style="margin-top: 1rem;"></div>
+            </div>
+            
+            <!-- Performance Info -->
+            <div class="result-card" style="margin-bottom: 1.5rem;">
+                <h3>📊 Performance</h3>
+                <div id="panel-performance" style="margin-top: 1rem;"></div>
+            </div>
+            
+            <!-- Materials List -->
+            <div class="result-card" style="margin-bottom: 1.5rem;">
+                <h3>🛒 Materials List</h3>
+                <table id="materials-table" class="bom-table" style="margin-top: 1rem;">
+                    <thead>
+                        <tr>
+                            <th>Material</th>
+                            <th>Quantity</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            
+            <!-- Construction Steps -->
+            <div class="result-card" style="margin-bottom: 1.5rem;">
+                <h3>🔨 Construction Steps</h3>
+                <ol id="construction-steps" class="construction-steps" style="margin-top: 1rem;"></ol>
+            </div>
+            
+            <!-- Tips & Warnings -->
+            <div class="result-card">
+                <h3>💡 Tips & Safety</h3>
+                <ul id="tips-list" style="margin-top: 1rem; list-style: disc; padding-left: 1.5rem;"></ul>
+            </div>
+        </div>
+    </main>
+
+    <style>
+        .panel-type-grid label {
+            cursor: pointer;
+        }
+        
+        .panel-type-option {
+            display: block;
+        }
+        
+        .panel-type-option input {
+            display: none;
+        }
+        
+        .panel-type-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            padding: 1.25rem;
+            background: var(--background);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            transition: all 0.2s ease;
+        }
+        
+        .panel-type-option input:checked + .panel-type-content {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .panel-type-content:hover {
+            border-color: var(--primary);
+        }
+        
+        .panel-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .panel-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+        
+        .panel-specific-fields.hidden {
+            display: none;
+        }
+    </style>
+
+    <script>
+        // Handle panel type selection
+        document.querySelectorAll('input[name="panel-type"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                // Hide all specific fields
+                document.querySelectorAll('.panel-specific-fields').forEach(f => f.classList.add('hidden'));
+                
+                // Show relevant fields
+                const type = e.target.value;
+                switch(type) {
+                    case 'broadband_absorber':
+                    case 'corner_bass_trap':
+                        document.getElementById('broadband-fields').classList.remove('hidden');
+                        break;
+                    case 'helmholtz_resonator':
+                        document.getElementById('helmholtz-fields').classList.remove('hidden');
+                        break;
+                    case 'qrd_diffuser':
+                        document.getElementById('qrd-fields').classList.remove('hidden');
+                        break;
+                    case 'membrane_absorber':
+                        document.getElementById('membrane-fields').classList.remove('hidden');
+                        break;
+                }
+            });
+        });
+        
+        // Handle form submission
+        document.getElementById('panel-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const panelType = document.querySelector('input[name="panel-type"]:checked').value;
+            const unit = document.getElementById('panel-unit').value;
+            
+            const data = {
+                panel_type: panelType,
+                width: parseFloat(document.getElementById('panel-width').value),
+                height: parseFloat(document.getElementById('panel-height').value),
+                unit: unit
+            };
+            
+            // Add type-specific fields
+            if (panelType === 'broadband_absorber' || panelType === 'corner_bass_trap') {
+                data.thickness = parseFloat(document.getElementById('absorber-thickness').value);
+                data.air_gap = parseFloat(document.getElementById('air-gap').value);
+                data.material = document.getElementById('absorber-material').value;
+            } else if (panelType === 'helmholtz_resonator') {
+                data.target_frequency = parseFloat(document.getElementById('target-frequency').value);
+                data.cavity_depth = parseFloat(document.getElementById('cavity-depth').value);
+            } else if (panelType === 'qrd_diffuser') {
+                data.design_frequency = parseFloat(document.getElementById('design-frequency').value);
+                data.prime_number = parseInt(document.getElementById('prime-number').value);
+            } else if (panelType === 'membrane_absorber') {
+                data.target_frequency = parseFloat(document.getElementById('membrane-target').value);
+                data.membrane_material = document.getElementById('membrane-material').value;
+            }
+            
+            const btn = e.target.querySelector('button');
+            btn.textContent = 'Generating...';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/design-panel', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    displayPanelDesign(result.panel, data.unit);
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error generating design: ' + error.message);
+            } finally {
+                btn.textContent = 'Generate Design';
+                btn.disabled = false;
+            }
+        });
+        
+        function displayPanelDesign(panel, unit) {
+            const unitLabel = unit === 'metric' ? 'mm' : 'in';
+            
+            // Panel specifications
+            document.getElementById('panel-specs').innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${panel.type}</div>
+                        <div class="stat-label">Panel Type</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${panel.dimensions.width} × ${panel.dimensions.height}</div>
+                        <div class="stat-label">Dimensions (${unitLabel})</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${panel.dimensions.depth}</div>
+                        <div class="stat-label">Depth (${unitLabel})</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${panel.dimensions.air_gap}</div>
+                        <div class="stat-label">Air Gap (${unitLabel})</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <p><strong>Material:</strong> ${panel.materials.absorber}</p>
+                    <p><strong>Frame:</strong> ${panel.materials.frame}</p>
+                    <p><strong>Facing:</strong> ${panel.materials.facing}</p>
+                </div>
+            `;
+            
+            // Performance
+            document.getElementById('panel-performance').innerHTML = `
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value">${panel.target_frequencies.join(', ')}</div>
+                        <div class="stat-label">Target Frequencies (Hz)</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${Object.keys(panel.absorption_coefficients).length} points</div>
+                        <div class="stat-label">Absorption Data</div>
+                    </div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <h4>Absorption Coefficients:</h4>
+                    <table style="width: 100%; border-collapse: collapse; margin-top: 0.5rem;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border);">
+                                <th style="padding: 0.5rem; text-align: left;">Frequency (Hz)</th>
+                                <th style="padding: 0.5rem; text-align: right;">Coefficient</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(panel.absorption_coefficients)
+                                .map(([freq, coeff]) => `
+                                    <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 0.5rem;">${freq}</td>
+                                        <td style="padding: 0.5rem; text-align: right;">${coeff}</td>
+                                    </tr>
+                                `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+                </div>
+            `;
+            
+            // Materials table
+            const materialsBody = document.querySelector('#materials-table tbody');
+            materialsBody.innerHTML = panel.materials_list.map(mat => `
+                <tr>
+                    <td>${mat.item}</td>
+                    <td>${mat.quantity}</td>
+                    <td>${mat.notes || '-'}</td>
+                </tr>
+            `).join('');
+            
+            // Construction steps
+            const stepsContainer = document.querySelector('#construction-steps ol');
+            stepsContainer.innerHTML = panel.construction_steps.map(step => `
+                <li style="margin-bottom: 1rem; line-height: 1.6;">${step}</li>
+            `).join('');
+            
+            // Show results
+            document.getElementById('panel-results').classList.remove('hidden');
+            document.getElementById('panel-results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+                </tr>
+            `).join('');
+            
+            // Construction steps
+            document.getElementById('construction-steps').innerHTML = panel.construction_steps.map(step => 
+                `<li>${step}</li>`
+            ).join('');
+            
+            // Tips
+            document.getElementById('tips-list').innerHTML = panel.tips.map(tip => 
+                `<li style="margin-bottom: 0.5rem;">${tip}</li>`
+            ).join('');
+            
+            // Show results
+            document.getElementById('panel-results').classList.remove('hidden');
+            document.getElementById('panel-results').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
