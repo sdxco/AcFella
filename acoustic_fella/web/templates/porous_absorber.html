@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Porous Absorber Calculator - AcFella{% endblock %}
+{% block content %}
+<main class="container" style="padding-top:2rem;">
+    <h1>Porous Absorber Calculator</h1>
+    <p class="text-muted">Delany-Bazley & Miki models for predicting absorption coefficient of porous materials.</p>
+
+    <div class="calculator-layout">
+        <div class="calc-inputs">
+            <div class="result-card">
+                <h3>Configuration</h3>
+                <form id="porous-form" onsubmit="calcPorous(event)">
+                    <div class="form-group">
+                        <label>Material Preset</label>
+                        <select id="pa-preset" onchange="applyPreset()">
+                            <option value="">Custom</option>
+                            {% for key, mat in presets.items() %}
+                            <option value="{{ key }}" data-sigma="{{ mat.sigma }}">{{ mat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Absorber Thickness (mm)</label>
+                        <input type="number" id="pa-thickness" value="100" min="10" max="500" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Flow Resistivity (Pa&middot;s/m&sup2;)</label>
+                        <input type="number" id="pa-sigma" value="10000" min="1000" max="100000" step="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Air Gap (mm)</label>
+                        <input type="number" id="pa-airgap" value="0" min="0" max="500" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Model</label>
+                        <select id="pa-model">
+                            <option value="miki">Miki (1990) - Recommended</option>
+                            <option value="delany_bazley">Delany-Bazley (1970)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Incidence</label>
+                        <select id="pa-incidence">
+                            <option value="both">Normal + Random</option>
+                            <option value="normal">Normal only</option>
+                            <option value="random">Random only</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width:100%">Calculate</button>
+                </form>
+            </div>
+
+            <!-- Second absorber for comparison -->
+            <div class="result-card">
+                <h3>Compare (optional)</h3>
+                <div class="form-group">
+                    <label><input type="checkbox" id="pa-compare-enable"> Enable comparison</label>
+                </div>
+                <div id="pa-compare-fields" class="hidden">
+                    <div class="form-group">
+                        <label>Thickness (mm)</label>
+                        <input type="number" id="pa2-thickness" value="100" min="10" max="500" step="5">
+                    </div>
+                    <div class="form-group">
+                        <label>Flow Resistivity</label>
+                        <input type="number" id="pa2-sigma" value="10000" min="1000" max="100000" step="500">
+                    </div>
+                    <div class="form-group">
+                        <label>Air Gap (mm)</label>
+                        <input type="number" id="pa2-airgap" value="100" min="0" max="500" step="5">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="calc-results">
+            <div class="result-card">
+                <h3>Absorption Coefficient</h3>
+                <div style="height:400px;"><canvas id="absorption-chart"></canvas></div>
+            </div>
+            <div class="results-grid" id="pa-metrics" style="display:none;">
+                <div class="result-card">
+                    <h3>Key Metrics</h3>
+                    <div id="pa-key-metrics" class="result-content"></div>
+                </div>
+                <div class="result-card">
+                    <h3>Octave Band Values</h3>
+                    <div id="pa-octave-bands" class="result-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('pa-compare-enable').addEventListener('change', function() {
+    document.getElementById('pa-compare-fields').classList.toggle('hidden', !this.checked);
+});
+function applyPreset() {
+    const sel = document.getElementById('pa-preset');
+    const opt = sel.options[sel.selectedIndex];
+    if (opt.dataset.sigma) document.getElementById('pa-sigma').value = opt.dataset.sigma;
+}
+
+let absorptionChart = null;
+
+async function calcPorous(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.textContent = 'Calculating...'; btn.disabled = true;
+
+    const body1 = {
+        thickness_mm: parseFloat(document.getElementById('pa-thickness').value),
+        flow_resistivity: parseFloat(document.getElementById('pa-sigma').value),
+        air_gap_mm: parseFloat(document.getElementById('pa-airgap').value),
+        model: document.getElementById('pa-model').value,
+        incidence: document.getElementById('pa-incidence').value,
+    };
+
+    try {
+        const resp = await fetch('/api/porous-absorber', {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body1)
+        });
+        const data = await resp.json();
+
+        if (!data.success) { alert('Error: ' + data.error); return; }
+
+        const datasets = [];
+        if (data.absorption_normal) {
+            datasets.push({
+                label: 'Normal Incidence', data: data.frequencies.map((f,i) => ({x:f, y:data.absorption_normal[i]})),
+                borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', fill: false, pointRadius: 0, tension: 0.3
+            });
+        }
+        if (data.absorption_random) {
+            datasets.push({
+                label: 'Random Incidence', data: data.frequencies.map((f,i) => ({x:f, y:data.absorption_random[i]})),
+                borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: false, pointRadius: 0, tension: 0.3
+            });
+        }
+
+        // Comparison
+        if (document.getElementById('pa-compare-enable').checked) {
+            const body2 = {
+                thickness_mm: parseFloat(document.getElementById('pa2-thickness').value),
+                flow_resistivity: parseFloat(document.getElementById('pa2-sigma').value),
+                air_gap_mm: parseFloat(document.getElementById('pa2-airgap').value),
+                model: body1.model, incidence: body1.incidence,
+            };
+            const resp2 = await fetch('/api/porous-absorber', {
+                method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body2)
+            });
+            const data2 = await resp2.json();
+            if (data2.success && data2.absorption_random) {
+                datasets.push({
+                    label: 'Compare: Random', data: data2.frequencies.map((f,i) => ({x:f, y:data2.absorption_random[i]})),
+                    borderColor: '#22c55e', borderDash: [5,5], fill: false, pointRadius: 0, tension: 0.3
+                });
+            }
+        }
+
+        if (absorptionChart) absorptionChart.destroy();
+        const ctx = document.getElementById('absorption-chart').getContext('2d');
+        absorptionChart = new Chart(ctx, {
+            type: 'line',
+            data: { datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                scales: {
+                    x: { type:'logarithmic', title:{display:true, text:'Frequency (Hz)'}, min:20, max:20000 },
+                    y: { title:{display:true, text:'Absorption Coefficient'}, min:0, max:1.05, ticks:{stepSize:0.1} }
+                },
+                plugins: { legend: {display: true} }
+            }
+        });
+
+        // Metrics
+        document.getElementById('pa-metrics').style.display = '';
+        document.getElementById('pa-key-metrics').innerHTML = `
+            <p><strong>NRC:</strong> <span class="value">${data.nrc}</span></p>
+            <p><strong>SAA:</strong> <span class="value">${data.saa}</span></p>
+            <p><strong>Effective low freq:</strong> <span class="value">${data.effective_low_freq} Hz</span></p>
+            <p><strong>Total depth:</strong> <span class="value">${data.total_depth_mm} mm</span></p>
+            <p><strong>Model:</strong> <span class="value">${data.model}</span></p>
+        `;
+
+        // Octave band values
+        const octaves = [63, 125, 250, 500, 1000, 2000, 4000, 8000];
+        let octaveHtml = '<table class="data-table"><tr><th>Freq</th><th>Normal</th><th>Random</th></tr>';
+        for (const f of octaves) {
+            const idx = data.frequencies.reduce((best, v, i) => Math.abs(v-f) < Math.abs(data.frequencies[best]-f) ? i : best, 0);
+            octaveHtml += `<tr><td>${f} Hz</td><td>${data.absorption_normal[idx].toFixed(2)}</td><td>${data.absorption_random[idx].toFixed(2)}</td></tr>`;
+        }
+        octaveHtml += '</table>';
+        document.getElementById('pa-octave-bands').innerHTML = octaveHtml;
+
+    } catch(err) { console.error(err); alert('Error calculating absorption'); }
+    finally { btn.textContent = 'Calculate'; btn.disabled = false; }
+}
+</script>
+{% endblock %}

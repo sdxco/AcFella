@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Projects - AcFella{% endblock %}
+{% block content %}
+<main class="container" style="padding-top:2rem;">
+    <div class="section-header">
+        <h1>Projects</h1>
+        <a href="/" class="btn-primary btn-sm">+ New Project</a>
+    </div>
+    <div class="projects-grid">
+        {% for p in projects %}
+        <div class="project-card" onclick="window.location='/project/{{p.id}}'">
+            <div class="project-card-header">
+                <h3>{{ p.name }}</h3>
+                <span class="badge">{{ p.room_type | replace('_', ' ') | title }}</span>
+            </div>
+            <p class="text-muted">{{ p.description }}</p>
+            {% if p.volume %}
+            <p class="project-meta">Volume: {{ "%.1f"|format(p.volume) }} m&sup3;</p>
+            {% endif %}
+            <div class="project-tags">
+                {% for tag in p.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% if not projects %}
+    <div class="empty-state">
+        <p>No projects yet. <a href="/">Create your first project</a>.</p>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

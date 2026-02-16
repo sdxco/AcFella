@@ -13,3 +13,6 @@ __all__ = [
     'ReverberationAnalyzer',
     'SchroederAnalyzer'
 ]
+
+from .porous_absorber import PorousAbsorberCalculator
+from .projects import ProjectManager

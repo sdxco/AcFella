@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}{{ project.name }} - AcFella{% endblock %}
+{% block content %}
+<main class="container" style="padding-top:2rem;">
+    <div class="breadcrumb"><a href="/projects">Projects</a> / {{ project.name }}</div>
+
+    <div class="project-header">
+        <div>
+            <h1>{{ project.name }}</h1>
+            <p class="text-muted">{{ project.description }}</p>
+            <span class="badge">{{ project.room_type | replace('_', ' ') | title }}</span>
+            {% for tag in project.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
+        </div>
+        <div class="project-actions">
+            <button class="btn-danger btn-sm" onclick="deleteProject('{{project.id}}')">Delete</button>
+        </div>
+    </div>
+
+    {% if project.geometry %}
+    <section class="section">
+        <h2>Room Geometry</h2>
+        <div class="results-grid">
+            <div class="result-card">
+                <h3>Dimensions</h3>
+                <div class="result-content">
+                    <p><strong>Length:</strong> {{ project.geometry.length }} m</p>
+                    <p><strong>Width:</strong> {{ project.geometry.width }} m</p>
+                    <p><strong>Height:</strong> {{ project.geometry.height }} m</p>
+                    <p><strong>Volume:</strong> {{ project.geometry.volume }} m&sup3;</p>
+                    {% if project.geometry.surface_area %}
+                    <p><strong>Surface Area:</strong> {{ project.geometry.surface_area }} m&sup2;</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if project.geometry.left_wall_length %}
+            <div class="result-card">
+                <h3>Detailed Measurements</h3>
+                <div class="result-content">
+                    <p><strong>Left wall:</strong> {{ project.geometry.left_wall_length }} m (H: {{ project.geometry.ceiling_height_left }} m)</p>
+                    <p><strong>Right wall:</strong> {{ project.geometry.right_wall_length }} m (H: {{ project.geometry.ceiling_height_right }} m)</p>
+                    <p><strong>Front wall:</strong> {{ project.geometry.front_wall_width }} m</p>
+                    <p><strong>Rear wall:</strong> {{ project.geometry.rear_wall_width }} m</p>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if project.geometry.walls %}
+            <div class="result-card">
+                <h3>Wall Materials</h3>
+                <div class="result-content">
+                    {% for wall in project.geometry.walls %}
+                    <div class="wall-info">
+                        <strong>{{ wall.name }}:</strong>
+                        {% for mat in wall.materials %}
+                        <span class="tag">{{ mat.type | replace('_', ' ') | title }}</span>
+                        {% if mat.notes %}<small class="text-muted"> ({{ mat.notes }})</small>{% endif %}
+                        {% endfor %}
+                        {% for opening in wall.openings %}
+                        <span class="tag tag-warn">{{ opening.type | title }}: {{ opening.width_m }}m</span>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if project.geometry.beams %}
+            <div class="result-card">
+                <h3>Structural Elements</h3>
+                <div class="result-content">
+                    {% for beam in project.geometry.beams %}
+                    <p><strong>Beam:</strong> {{ beam.width_m }}m wide, depth L: {{ beam.depth_left_m }}m / R: {{ beam.depth_right_m }}m</p>
+                    <p>Height under beam: {{ beam.height_under_m }}m</p>
+                    <p>{{ beam.distance_from_left_wall_m }}m from left, {{ beam.distance_from_right_wall_m }}m from right</p>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if project.geometry.ceilings %}
+            <div class="result-card">
+                <h3>Ceiling</h3>
+                <div class="result-content">
+                    {% for ceil in project.geometry.ceilings %}
+                    <p><strong>{{ ceil.name }}:</strong> {{ ceil.material | replace('_', ' ') | title }} at {{ ceil.height }}m</p>
+                    {% if ceil.notes %}<small class="text-muted">{{ ceil.notes }}</small>{% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <!-- Quick Actions -->
+    <section class="section">
+        <h2>Analyze This Room</h2>
+        <div class="tools-grid">
+            <a href="/room-analysis?project={{ project.id }}" class="tool-card">
+                <div class="tool-icon">&#128208;</div>
+                <h3>Room Modes</h3>
+                <p>Calculate modes for this room</p>
+            </a>
+            <a href="/magic?project={{ project.id }}" class="tool-card">
+                <div class="tool-icon">&#127919;</div>
+                <h3>Complete Analysis</h3>
+                <p>Full analysis with treatment plan</p>
+            </a>
+            <a href="/speaker-placement?project={{ project.id }}" class="tool-card">
+                <div class="tool-icon">&#128264;</div>
+                <h3>Speaker Placement</h3>
+                <p>Optimal monitor positions</p>
+            </a>
+            <a href="/treatment-plan?project={{ project.id }}" class="tool-card">
+                <div class="tool-icon">&#128295;</div>
+                <h3>Treatment Plan</h3>
+                <p>Generate treatment recommendations</p>
+            </a>
+            <a href="/porous-absorber" class="tool-card">
+                <div class="tool-icon">&#128200;</div>
+                <h3>Porous Absorber</h3>
+                <p>Calculate absorption coefficients</p>
+            </a>
+        </div>
+    </section>
+    {% else %}
+    <section class="section">
+        <div class="empty-state">
+            <p>No room geometry defined. Add dimensions to start analyzing.</p>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if project.notes %}
+    <section class="section">
+        <h2>Notes</h2>
+        <div class="result-card"><div class="result-content"><pre style="white-space:pre-wrap;">{{ project.notes }}</pre></div></div>
+    </section>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+async function deleteProject(id) {
+    if (!confirm('Delete this project?')) return;
+    try {
+        await fetch('/api/projects/' + id, {method: 'DELETE'});
+        window.location.href = '/projects';
+    } catch(e) { alert('Error deleting project'); }
+}
+</script>
+{% endblock %}

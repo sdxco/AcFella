@@ -1,448 +1,189 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Room Analysis - Acoustic Fella</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-</head>
-<body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <span class="logo">🎛️</span>
-            <span class="brand-name">Acoustic Fella</span>
-        </div>
-        <ul class="nav-links">
-            <li><a href="/">Home</a></li>
-            <li><a href="/room-analysis" class="active">Room Analysis</a></li>
-            <li><a href="/treatment-plan">Treatment Plan</a></li>
-            <li><a href="/speaker-placement">Speaker Placement</a></li>
-            <li><a href="/diy-calculator">DIY Calculator</a></li>
-        </ul>
-    </nav>
+{% extends "base.html" %}
+{% block title %}Room Mode Analysis - AcFella{% endblock %}
+{% block content %}
+<main class="container" style="padding-top:2rem;">
+    <h1>Room Mode Analysis</h1>
+    <p class="text-muted">Calculate standing waves, Schroeder frequency, Bonello criterion & optimal ratios.</p>
 
-    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
-        <h1 style="margin-bottom: 2rem;">Room Acoustics Analysis</h1>
-        
-        <div class="results-grid" style="margin-bottom: 2rem;">
-            <!-- Room Dimensions Input -->
+    <div class="calculator-layout">
+        <div class="calc-inputs">
             <div class="result-card">
-                <h3>📐 Room Dimensions</h3>
-                <form id="room-form" class="result-content">
-                    <div class="form-group">
-                        <label for="length">Length</label>
-                        <input type="number" id="length" step="0.1" placeholder="5.0" required>
+                <h3>Room Dimensions</h3>
+                <form id="room-form" onsubmit="analyzeRoom(event)">
+                    {% if project %}
+                    <div class="project-badge">Project: {{ project.name }}</div>
+                    {% endif %}
+                    <div class="form-row">
+                        <div class="form-group"><label>Length</label><input type="number" id="rm-length" step="0.01" value="{{ project.geometry.length if project and project.geometry else '4.20' }}" required></div>
+                        <div class="form-group"><label>Width</label><input type="number" id="rm-width" step="0.01" value="{{ project.geometry.width if project and project.geometry else '2.83' }}" required></div>
+                        <div class="form-group"><label>Height</label><input type="number" id="rm-height" step="0.01" value="{{ project.geometry.height if project and project.geometry else '2.41' }}" required></div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Unit</label>
+                            <select id="rm-unit"><option value="metric">Meters</option><option value="imperial">Feet</option></select>
+                        </div>
+                        <div class="form-group">
+                            <label>Room Type</label>
+                            <select id="rm-type">
+                                <option value="mixing_mastering">Mixing/Mastering</option>
+                                <option value="music_production">Music Production</option>
+                                <option value="vocal_recording">Vocal Recording</option>
+                                <option value="live_recording">Live Recording</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group"><label>RT60 (s)</label><input type="number" id="rm-rt60" step="0.01" value="0.3" min="0.1" max="3"></div>
+                        <div class="form-group"><label>Max Freq (Hz)</label><input type="number" id="rm-maxfreq" value="500" min="100" max="1000"></div>
                     </div>
                     <div class="form-group">
-                        <label for="width">Width</label>
-                        <input type="number" id="width" step="0.1" placeholder="4.0" required>
+                        <label>Show Mode Types</label>
+                        <div class="checkbox-row">
+                            <label><input type="checkbox" id="rm-axial" checked> Axial</label>
+                            <label><input type="checkbox" id="rm-tangential" checked> Tangential</label>
+                            <label><input type="checkbox" id="rm-oblique"> Oblique</label>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="height">Height</label>
-                        <input type="number" id="height" step="0.1" placeholder="2.7" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="unit">Unit</label>
-                        <select id="unit">
-                            <option value="metric">Meters</option>
-                            <option value="imperial">Feet</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="room-type">Room Purpose</label>
-                        <select id="room-type">
-                            <option value="mixing_mastering">Mixing & Mastering</option>
-                            <option value="music_production">Music Production</option>
-                            <option value="vocal_recording">Vocal Recording</option>
-                            <option value="podcast">Podcast / Voiceover</option>
-                            <option value="live_recording">Live Recording</option>
-                        </select>
-                    </div>
-                    <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">
-                        Analyze Room
-                    </button>
+                    <button type="submit" class="btn-primary" style="width:100%">Analyze</button>
                 </form>
-            </div>
-            
-            <!-- REW File Upload -->
-            <div class="result-card">
-                <h3>📈 REW Measurement (Optional)</h3>
-                <div class="result-content">
-                    <p style="margin-bottom: 1rem; color: var(--text-muted);">
-                        Upload a Room EQ Wizard measurement for detailed frequency response analysis.
-                    </p>
-                    <div class="form-group">
-                        <label for="rew-file">Measurement File</label>
-                        <input type="file" id="rew-file" accept=".txt,.frd,.wav,.mdat" style="padding: 0.5rem;">
-                    </div>
-                    <button id="upload-btn" class="btn-secondary" style="width: 100%;" disabled>
-                        Upload & Analyze
-                    </button>
-                    <div id="rew-status" style="margin-top: 1rem;"></div>
+                {% if projects %}
+                <div class="form-group" style="margin-top:1rem;">
+                    <label>Load from project:</label>
+                    <select onchange="if(this.value)window.location='/room-analysis?project='+this.value">
+                        <option value="">Select project...</option>
+                        {% for p in projects %}<option value="{{p.id}}" {% if project and p.id == project.id %}selected{% endif %}>{{p.name}}</option>{% endfor %}
+                    </select>
                 </div>
+                {% endif %}
             </div>
         </div>
-        
-        <!-- Analysis Results -->
-        <div id="analysis-results" class="hidden">
-            <!-- Mode Analysis -->
-            <div class="result-card" style="margin-bottom: 1.5rem;">
-                <h3>🔊 Room Mode Analysis</h3>
-                <div class="results-grid" style="margin-top: 1rem;">
-                    <div id="mode-summary"></div>
-                    <div id="ratio-analysis"></div>
-                </div>
-            </div>
-            
-            <!-- Modes Chart -->
-            <div class="chart-container" style="height: 400px; margin-bottom: 1.5rem;">
-                <h3>Room Mode Distribution</h3>
-                <canvas id="full-modes-chart"></canvas>
-            </div>
-            
-            <!-- Bonello Analysis -->
-            <div class="result-card" style="margin-bottom: 1.5rem;">
-                <h3>📊 Bonello Criterion Analysis</h3>
-                <div id="bonello-results"></div>
-                <div style="height: 300px; margin-top: 1rem;">
-                    <canvas id="bonello-chart"></canvas>
-                </div>
-            </div>
-            
-            <!-- Problem Frequencies -->
-            <div class="result-card" style="margin-bottom: 1.5rem;">
-                <h3>⚠️ Problem Frequencies</h3>
-                <div id="problem-frequencies"></div>
-            </div>
-            
-            <!-- Schroeder Analysis -->
-            <div class="result-card" style="margin-bottom: 1.5rem;">
-                <h3>📉 Schroeder Frequency Analysis</h3>
-                <div id="schroeder-results"></div>
-            </div>
-            
-            <!-- Treatment Zones -->
-            <div class="result-card" style="margin-bottom: 1.5rem;">
-                <h3>🎯 Treatment Zones</h3>
-                <div id="treatment-zones"></div>
-            </div>
-        </div>
-        
-        <!-- REW Results (if uploaded) -->
-        <div id="rew-results" class="hidden">
-            <div class="result-card" style="margin-bottom: 1.5rem;">
-                <h3>📈 Measured Frequency Response</h3>
-                <div style="height: 400px;">
-                    <canvas id="fr-chart"></canvas>
-                </div>
-            </div>
-            
-            <div class="result-card" style="margin-bottom: 1.5rem;">
-                <h3>🔍 FR Analysis</h3>
-                <div id="fr-analysis"></div>
-            </div>
-        </div>
-        
-        <!-- Action Buttons -->
-        <div class="action-buttons hidden" id="action-buttons">
-            <a href="/treatment-plan" class="btn-primary">Generate Treatment Plan</a>
-            <a href="/speaker-placement" class="btn-secondary">Optimize Speaker Placement</a>
-        </div>
-    </main>
 
-    <script>
-        // Room analysis page specific code
-        const roomForm = document.getElementById('room-form');
-        const rewFile = document.getElementById('rew-file');
-        const uploadBtn = document.getElementById('upload-btn');
-        
-        // Enable upload button when file selected
-        rewFile.addEventListener('change', () => {
-            uploadBtn.disabled = !rewFile.files.length;
+        <div class="calc-results" id="rm-results" style="display:none;">
+            <div class="results-grid">
+                <div class="result-card"><h3>Room Info</h3><div id="rm-info" class="result-content"></div></div>
+                <div class="result-card"><h3>Schroeder Analysis</h3><div id="rm-schroeder" class="result-content"></div></div>
+                <div class="result-card"><h3>Room Ratios</h3><div id="rm-ratios" class="result-content"></div></div>
+                <div class="result-card"><h3>Bonello Criterion</h3><div id="rm-bonello" class="result-content"></div></div>
+            </div>
+            <div class="result-card"><h3>Mode Distribution</h3><div style="height:350px;"><canvas id="rm-chart"></canvas></div></div>
+            <div class="result-card"><h3>Mode List</h3><div id="rm-modelist" class="result-content" style="max-height:400px;overflow-y:auto;"></div></div>
+            <div class="result-card"><h3>Problem Frequencies</h3><div id="rm-problems" class="result-content"></div></div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let rmChart = null;
+async function analyzeRoom(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.textContent = 'Analyzing...'; btn.disabled = true;
+
+    const body = {
+        length: parseFloat(document.getElementById('rm-length').value),
+        width: parseFloat(document.getElementById('rm-width').value),
+        height: parseFloat(document.getElementById('rm-height').value),
+        unit: document.getElementById('rm-unit').value,
+        room_type: document.getElementById('rm-type').value,
+        rt60: parseFloat(document.getElementById('rm-rt60').value),
+        max_frequency: parseFloat(document.getElementById('rm-maxfreq').value),
+    };
+
+    try {
+        const resp = await fetch('/api/analyze-room', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
         });
-        
-        // Handle room form submission
-        roomForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const data = {
-                length: parseFloat(document.getElementById('length').value),
-                width: parseFloat(document.getElementById('width').value),
-                height: parseFloat(document.getElementById('height').value),
-                unit: document.getElementById('unit').value,
-                room_type: document.getElementById('room-type').value
-            };
-            
-            // Store for later use
-            sessionStorage.setItem('roomData', JSON.stringify(data));
-            
-            try {
-                const response = await fetch('/api/analyze-room', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    displayFullAnalysis(result, data.unit);
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                alert('Error analyzing room: ' + error.message);
-            }
-        });
-        
-        // Handle REW upload
-        uploadBtn.addEventListener('click', async () => {
-            if (!rewFile.files.length) return;
-            
-            const formData = new FormData();
-            formData.append('file', rewFile.files[0]);
-            
-            uploadBtn.textContent = 'Uploading...';
-            uploadBtn.disabled = true;
-            
-            try {
-                const response = await fetch('/api/upload-rew', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    displayREWResults(result);
-                    document.getElementById('rew-status').innerHTML = 
-                        '<span class="good">✓ File processed successfully</span>';
-                } else {
-                    document.getElementById('rew-status').innerHTML = 
-                        '<span class="bad">✗ ' + result.error + '</span>';
-                }
-            } catch (error) {
-                document.getElementById('rew-status').innerHTML = 
-                    '<span class="bad">✗ Upload failed: ' + error.message + '</span>';
-            } finally {
-                uploadBtn.textContent = 'Upload & Analyze';
-                uploadBtn.disabled = false;
-            }
-        });
-        
-        function displayFullAnalysis(data, unit) {
-            const unitLabel = unit === 'metric' ? 'm' : 'ft';
-            const report = data.room_report;
-            
-            // Mode Summary
-            document.getElementById('mode-summary').innerHTML = `
-                <p><strong>Total Modes (under 300Hz):</strong> <span class="value">${report.modes.total}</span></p>
-                <p><strong>Axial Modes:</strong> <span class="value">${report.modes.axial}</span> (most energetic)</p>
-                <p><strong>Tangential Modes:</strong> <span class="value">${report.modes.tangential}</span></p>
-                <p><strong>Oblique Modes:</strong> <span class="value">${report.modes.oblique}</span></p>
-                <p><strong>Average Mode Spacing:</strong> <span class="value">${report.spacing_analysis.average_spacing?.toFixed(1) || 'N/A'} Hz</span></p>
-            `;
-            
-            // Ratio Analysis
-            const ratios = report.ratio_analysis;
-            document.getElementById('ratio-analysis').innerHTML = `
-                <p><strong>Room Ratios:</strong> <span class="value">${ratios.current_ratios.join(' : ')}</span></p>
-                <p><strong>Best Match:</strong> <span class="value">${ratios.best_match}</span></p>
-                <p><strong>Quality:</strong> <span class="${ratios.comparisons[ratios.best_match].match_quality === 'Excellent' ? 'good' : ratios.comparisons[ratios.best_match].match_quality === 'Poor' ? 'bad' : 'warning'}">${ratios.comparisons[ratios.best_match].match_quality}</span></p>
-                <p style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">
-                    Optimal ratios minimize mode clustering for smoother bass response.
-                </p>
-            `;
-            
-            // Bonello Results
-            const bonello = report.bonello;
-            document.getElementById('bonello-results').innerHTML = `
-                <p><strong>Bonello Criterion:</strong> 
-                    <span class="${bonello.passes_bonello ? 'good' : 'bad'}">
-                        ${bonello.passes_bonello ? '✓ PASSES' : '✗ FAILS'}
-                    </span>
-                </p>
-                ${!bonello.passes_bonello ? `<p><strong>Problem Bands:</strong> <span class="bad">${bonello.problem_bands.join(', ')} Hz</span></p>` : ''}
-                <p><strong>Recommendation:</strong> ${bonello.recommendation}</p>
-            `;
-            
-            // Create Bonello chart
-            createBonelloChart(bonello.band_analysis);
-            
-            // Problem Frequencies
-            const problems = report.problems;
-            if (problems.length > 0) {
-                document.getElementById('problem-frequencies').innerHTML = problems.map(p => `
-                    <div class="recommendation-item priority-${p.severity === 'high' ? 'high' : 'medium'}">
-                        <h4>${p.frequency?.toFixed(1) || 'N/A'} Hz ${p.mode ? `(${p.mode})` : ''}</h4>
-                        <p>${p.recommendation || p.type}</p>
-                    </div>
-                `).join('');
-            } else {
-                document.getElementById('problem-frequencies').innerHTML = 
-                    '<p class="good">No significant problem frequencies detected!</p>';
-            }
-            
-            // Schroeder Results
-            document.getElementById('schroeder-results').innerHTML = `
-                <p><strong>Schroeder Frequency:</strong> <span class="value">${data.schroeder.frequency.toFixed(0)} Hz</span></p>
-                <p><strong>Bass Trap Range:</strong> <span class="value">${data.schroeder.bass_trap_range}</span></p>
-                <p><strong>Absorber Range:</strong> <span class="value">${data.schroeder.absorber_range}</span></p>
-                <p style="color: var(--text-muted); margin-top: 0.5rem;">
-                    The Schroeder frequency marks the transition from modal behavior (resonator) 
-                    to diffuse field (reflector). Below this frequency, bass traps are essential.
-                </p>
-            `;
-            
-            // Treatment Zones
-            const zones = data.treatment_zones.zones;
-            document.getElementById('treatment-zones').innerHTML = zones.map(z => `
-                <div class="recommendation-item priority-${z.priority === 'critical' ? 'high' : z.priority === 'high' ? 'medium' : 'low'}">
-                    <h4>${z.name} (${z.range})</h4>
-                    <p><strong>Behavior:</strong> ${z.behavior}</p>
-                    <p><strong>Treatment:</strong> ${z.treatment}</p>
-                    <p><strong>Placement:</strong> ${z.placement}</p>
-                </div>
-            `).join('');
-            
-            // Create full modes chart
-            createFullModesChart(report);
-            
-            // Show results
-            document.getElementById('analysis-results').classList.remove('hidden');
-            document.getElementById('action-buttons').classList.remove('hidden');
+        const d = await resp.json();
+        if (!d.success) { alert('Error: ' + d.error); return; }
+
+        document.getElementById('rm-results').style.display = '';
+
+        // Room info
+        document.getElementById('rm-info').innerHTML = `
+            <p><strong>Volume:</strong> ${d.room_info.volume} m&sup3;</p>
+            <p><strong>Surface Area:</strong> ${d.room_info.surface_area} m&sup2;</p>
+            <p><strong>Total Modes (up to ${body.max_frequency}Hz):</strong> ${d.modes.length}</p>
+        `;
+
+        // Schroeder
+        document.getElementById('rm-schroeder').innerHTML = `
+            <p><strong>Schroeder Frequency:</strong> <span class="value highlight">${d.schroeder.frequency} Hz</span></p>
+            <p><strong>Transition Region:</strong> ${d.schroeder.transition_low} - ${d.schroeder.transition_high} Hz</p>
+            <p><strong>Bass Trap Range:</strong> ${d.schroeder.bass_trap_range}</p>
+            <p><strong>Absorber Range:</strong> ${d.schroeder.absorber_range}</p>
+        `;
+
+        // Ratios
+        const r = d.ratios;
+        let ratioHtml = `<p><strong>Current:</strong> ${r.current_ratios.join(' : ')}</p><p><strong>Best match:</strong> ${r.best_match} (deviation: ${r.best_deviation})</p>`;
+        for (const [name, comp] of Object.entries(r.comparisons)) {
+            ratioHtml += `<p>${name}: ${comp.optimal_ratios.join(':')} - <span class="${comp.match_quality === 'Excellent' || comp.match_quality === 'Good' ? 'good' : comp.match_quality === 'Fair' ? 'warning' : 'bad'}">${comp.match_quality}</span></p>`;
         }
-        
-        function createBonelloChart(bandAnalysis) {
-            const ctx = document.getElementById('bonello-chart').getContext('2d');
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: bandAnalysis.map(b => b.center_frequency + ' Hz'),
-                    datasets: [{
-                        label: 'Mode Count',
-                        data: bandAnalysis.map(b => b.mode_count),
-                        backgroundColor: bandAnalysis.map(b => b.passes ? '#22c55e' : '#ef4444'),
-                        borderRadius: 4
-                    }]
+        document.getElementById('rm-ratios').innerHTML = ratioHtml;
+
+        // Bonello
+        const b = d.bonello;
+        document.getElementById('rm-bonello').innerHTML = `
+            <p><strong>Result:</strong> <span class="${b.passes_bonello ? 'good' : 'bad'}">${b.passes_bonello ? 'PASSES' : 'FAILS'}</span></p>
+            <p>${b.recommendation}</p>
+        `;
+
+        // Filter modes
+        const showAxial = document.getElementById('rm-axial').checked;
+        const showTang = document.getElementById('rm-tangential').checked;
+        const showOblique = document.getElementById('rm-oblique').checked;
+        const filtered = d.modes.filter(m =>
+            (m.type === 'axial' && showAxial) ||
+            (m.type === 'tangential' && showTang) ||
+            (m.type === 'oblique' && showOblique)
+        );
+
+        // Chart
+        if (rmChart) rmChart.destroy();
+        const ctx = document.getElementById('rm-chart').getContext('2d');
+        const colors = filtered.map(m => m.type === 'axial' ? '#ef4444' : m.type === 'tangential' ? '#f59e0b' : '#22c55e');
+        rmChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: filtered.map(m => m.frequency + ' Hz'),
+                datasets: [{
+                    label: 'Room Modes',
+                    data: filtered.map(m => m.frequency),
+                    backgroundColor: colors,
+                    borderRadius: 2
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { afterLabel: ctx => { const m = filtered[ctx.dataIndex]; return `Type: ${m.type}\nMode: ${m.indices}`; }}}
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        title: {
-                            display: true,
-                            text: '1/3 Octave Band Mode Count (should increase or stay same)'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Number of Modes' }
-                        }
-                    }
-                }
-            });
-        }
-        
-        function createFullModesChart(report) {
-            const ctx = document.getElementById('full-modes-chart').getContext('2d');
-            
-            const modes = report.modes.first_10;
-            
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: modes.map(m => m.mode),
-                    datasets: [{
-                        label: 'Frequency (Hz)',
-                        data: modes.map(m => m.freq),
-                        backgroundColor: modes.map(m => {
-                            switch(m.type) {
-                                case 'axial': return '#ef4444';
-                                case 'tangential': return '#f59e0b';
-                                case 'oblique': return '#22c55e';
-                                default: return '#6366f1';
-                            }
-                        }),
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        title: {
-                            display: true,
-                            text: 'First 10 Room Modes (Red=Axial, Orange=Tangential, Green=Oblique)'
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: { display: true, text: 'Frequency (Hz)' }
-                        },
-                        x: {
-                            title: { display: true, text: 'Mode (p,q,r)' }
-                        }
-                    }
-                }
-            });
-        }
-        
-        function displayREWResults(data) {
-            if (data.frequency_response) {
-                // Create FR chart
-                const ctx = document.getElementById('fr-chart').getContext('2d');
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: data.frequency_response.frequencies,
-                        datasets: [{
-                            label: 'Magnitude (dB)',
-                            data: data.frequency_response.magnitudes,
-                            borderColor: '#6366f1',
-                            backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                            fill: true,
-                            tension: 0.1,
-                            pointRadius: 0
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                type: 'logarithmic',
-                                min: 20,
-                                max: 20000,
-                                title: { display: true, text: 'Frequency (Hz)' }
-                            },
-                            y: {
-                                title: { display: true, text: 'Level (dB)' }
-                            }
-                        }
-                    }
-                });
-                
-                // FR Analysis
-                const analysis = data.fr_analysis;
-                document.getElementById('fr-analysis').innerHTML = `
-                    <p><strong>Target Level:</strong> ${analysis.target_level} dB</p>
-                    <p><strong>Bass Average:</strong> ${analysis.bass_average} dB</p>
-                    <p><strong>Mids Average:</strong> ${analysis.mids_average} dB</p>
-                    <p><strong>Overall Deviation:</strong> ${analysis.overall_deviation} dB</p>
-                    <p><strong>Flatness Score:</strong> <span class="${analysis.flatness_score > 80 ? 'good' : 'warning'}">${analysis.flatness_score}%</span> within ±3dB</p>
-                    <p><strong>Recommendation:</strong> ${analysis.recommendation}</p>
-                `;
-                
-                document.getElementById('rew-results').classList.remove('hidden');
+                scales: { y: { beginAtZero: true, title: {display:true, text:'Frequency (Hz)'} } }
             }
+        });
+
+        // Mode list table
+        let tableHtml = '<table class="data-table"><tr><th>Freq (Hz)</th><th>Mode</th><th>Type</th><th>Wavelength (m)</th></tr>';
+        for (const m of filtered.slice(0, 100)) {
+            tableHtml += `<tr><td>${m.frequency}</td><td>${m.indices}</td><td><span class="mode-${m.type}">${m.type}</span></td><td>${m.wavelength}</td></tr>`;
         }
-    </script>
-</body>
-</html>
+        tableHtml += '</table>';
+        document.getElementById('rm-modelist').innerHTML = tableHtml;
+
+        // Problems
+        if (d.problems && d.problems.length) {
+            document.getElementById('rm-problems').innerHTML = d.problems.map(p =>
+                `<div class="problem-item severity-${p.severity}"><strong>${p.frequency.toFixed(1)} Hz</strong> - ${p.recommendation}</div>`
+            ).join('');
+        } else {
+            document.getElementById('rm-problems').innerHTML = '<p class="good">No significant problems detected.</p>';
+        }
+    } catch(err) { console.error(err); alert('Error analyzing room'); }
+    finally { btn.textContent = 'Analyze'; btn.disabled = false; }
+}
+</script>
+{% endblock %}

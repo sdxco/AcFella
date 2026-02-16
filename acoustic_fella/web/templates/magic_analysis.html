@@ -1,550 +1,123 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Complete Analysis - Acoustic Fella</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-</head>
-<body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <span class="logo">🎛️</span>
-            <span class="brand-name">Acoustic Fella</span>
-        </div>
-        <ul class="nav-links">
-            <li><a href="/">Home</a></li>
-            <li><a href="/magic" class="active">Complete Analysis</a></li>
-            <li><a href="/room-analysis">Room Analysis</a></li>
-            <li><a href="/treatment-plan">Treatment Plan</a></li>
-        </ul>
-    </nav>
+{% extends "base.html" %}
+{% block title %}Complete Analysis - AcFella{% endblock %}
+{% block content %}
+<main class="container" style="padding-top:2rem;">
+    <h1>Complete Room Analysis</h1>
+    <p class="text-muted">One comprehensive analysis: room modes, treatment plan, speaker placement, and DIY panel specs.</p>
 
-    <main class="container" style="padding-top: 2rem; padding-bottom: 4rem;">
-        <h1 style="margin-bottom: 0.5rem;">🎯 Complete Room Acoustic Analysis</h1>
-        <p style="color: var(--text-muted); margin-bottom: 2rem;">One comprehensive analysis - from room dimensions to treatment plan</p>
-        
-        <!-- Single Input Form -->
-        <div class="result-card" style="margin-bottom: 2rem;">
-            <h3>📋 Room Details</h3>
-            <form id="magic-form" style="margin-top: 1rem;">
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="length">Length (front to back)</label>
-                        <input type="number" id="length" step="any" value="4.10" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="width">Width (side to side)</label>
-                        <input type="number" id="width" step="any" value="2.82" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="height">Height</label>
-                        <input type="number" id="height" step="any" value="2.5" required>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="unit">Unit</label>
-                        <select id="unit">
-                            <option value="metric">Meters</option>
-                            <option value="imperial">Feet</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="room-type">Room Type</label>
-                        <select id="room-type">
-                            <option value="mixing_mastering">Mixing & Mastering</option>
-                            <option value="recording">Recording Room</option>
-                            <option value="music_production">Music Production</option>
-                            <option value="home_theater">Home Theater</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="speaker-type">Speaker Type</label>
-                        <select id="speaker-type">
-                            <option value="nearfield">Nearfield Monitors</option>
-                            <option value="midfield">Midfield Monitors</option>
-                            <option value="main">Main Monitors</option>
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group" style="grid-column: span 3;">
-                        <label for="rew-file">REW Measurement (optional - .txt, .frd, .mdat, .wav or screenshot PNG/JPG)</label>
-                        <input type="file" id="rew-file" accept=".txt,.frd,.mdat,.wav,.png,.jpg,.jpeg">
-                        <small style="color: var(--text-muted);">Upload REW measurement file or a screenshot of REW frequency response</small>
-                    </div>
-                </div>
-                
-                <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem; padding: 1rem; font-size: 1.1rem;">
-                    🚀 Analyze Everything
-                </button>
-            </form>
+    <div class="result-card">
+        <form id="magic-form" onsubmit="runMagic(event)" enctype="multipart/form-data">
+            {% if project %}<div class="project-badge">Project: {{ project.name }}</div>{% endif %}
+            <div class="form-row">
+                <div class="form-group"><label>Length</label><input type="number" name="length" step="0.01" value="{{ project.geometry.length if project and project.geometry else '4.20' }}" required></div>
+                <div class="form-group"><label>Width</label><input type="number" name="width" step="0.01" value="{{ project.geometry.width if project and project.geometry else '2.83' }}" required></div>
+                <div class="form-group"><label>Height</label><input type="number" name="height" step="0.01" value="{{ project.geometry.height if project and project.geometry else '2.41' }}" required></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group"><label>Unit</label><select name="unit"><option value="metric">Meters</option><option value="imperial">Feet</option></select></div>
+                <div class="form-group"><label>Room Type</label><select name="room_type"><option value="mixing_mastering">Mixing/Mastering</option><option value="music_production">Music Production</option><option value="vocal_recording">Vocal Recording</option><option value="live_recording">Live Recording</option></select></div>
+                <div class="form-group"><label>Speaker Type</label><select name="speaker_type"><option value="nearfield">Nearfield</option><option value="midfield">Midfield</option><option value="main">Main</option></select></div>
+            </div>
+            <div class="form-group">
+                <label>REW Measurement File (optional)</label>
+                <input type="file" name="rew_file" accept=".txt,.frd,.mdat,.png,.jpg,.jpeg">
+            </div>
+            <button type="submit" class="btn-primary" style="width:100%;">Run Complete Analysis</button>
+        </form>
+        {% if projects %}
+        <div class="form-group" style="margin-top:1rem;">
+            <label>Load from project:</label>
+            <select onchange="if(this.value)window.location='/magic?project='+this.value">
+                <option value="">Select project...</option>
+                {% for p in projects %}<option value="{{p.id}}" {% if project and p.id == project.id %}selected{% endif %}>{{p.name}}</option>{% endfor %}
+            </select>
         </div>
-        
-        <!-- Loading State -->
-        <div id="loading" class="hidden" style="text-align: center; padding: 3rem;">
-            <div style="font-size: 3rem; margin-bottom: 1rem;">⚙️</div>
-            <h3>Analyzing your room...</h3>
-            <p style="color: var(--text-muted);">Calculating modes, RT60, speaker placement, and treatment plan</p>
-        </div>
-        
-        <!-- Results Section -->
-        <div id="results" class="hidden">
-            <!-- Room Overview -->
-            <div class="result-card" style="margin-bottom: 2rem;">
-                <h3>📊 Room Overview</h3>
-                <div id="overview-stats" class="stats-grid" style="margin-top: 1rem;"></div>
-            </div>
-            
-            <!-- Room Modes -->
-            <div class="result-card" style="margin-bottom: 2rem;">
-                <h3>🎵 Room Modes Analysis</h3>
-                <div id="modes-chart-container">
-                    <canvas id="modesChart"></canvas>
-                </div>
-                <div id="bonello-analysis" style="margin-top: 1.5rem;"></div>
-            </div>
-            
-            <!-- REW Analysis (if uploaded) -->
-            <div id="rew-section" class="hidden result-card" style="margin-bottom: 2rem;">
-                <h3>📈 REW Measurement Analysis</h3>
-                <div id="rew-chart-container">
-                    <canvas id="rewChart"></canvas>
-                </div>
-                <div id="rew-problems" style="margin-top: 1.5rem;"></div>
-            </div>
-            
-            <!-- Speaker Placement -->
-            <div class="result-card" style="margin-bottom: 2rem;">
-                <h3>🔊 Speaker & Listener Placement</h3>
-                <div class="results-grid">
-                    <div>
-                        <canvas id="room-canvas" width="400" height="300"></canvas>
-                    </div>
-                    <div id="placement-details"></div>
-                </div>
-                <div id="placement-instructions" style="margin-top: 1.5rem;"></div>
-            </div>
-            
-            <!-- Treatment Plan -->
-            <div class="result-card" style="margin-bottom: 2rem;">
-                <h3>🛠️ Treatment Plan</h3>
-                <div id="treatment-items"></div>
-                <div style="margin-top: 1.5rem;">
-                    <h4>📦 Bill of Materials</h4>
-                    <table id="bom-table" class="bom-table" style="margin-top: 1rem;">
-                        <thead>
-                            <tr>
-                                <th>Item</th>
-                                <th>Quantity</th>
-                                <th>Unit</th>
-                                <th>Notes</th>
-                            </tr>
-                        </thead>
-                        <tbody></tbody>
-                    </table>
-                </div>
-            </div>
-            
-            <!-- DIY Panel Designs -->
-            <div class="result-card">
-                <h3>🔧 DIY Panel Construction Guides</h3>
-                <p style="color: var(--text-muted); margin-bottom: 1rem;">Step-by-step guides for the panels in your treatment plan</p>
-                <div id="diy-panels"></div>
-            </div>
-        </div>
-    </main>
+        {% endif %}
+    </div>
 
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script>
-        let modesChart = null;
-        let rewChart = null;
-        
-        document.getElementById('magic-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            // Show loading
-            document.getElementById('loading').classList.remove('hidden');
-            document.getElementById('results').classList.add('hidden');
-            
-            const formData = new FormData();
-            formData.append('length', document.getElementById('length').value);
-            formData.append('width', document.getElementById('width').value);
-            formData.append('height', document.getElementById('height').value);
-            formData.append('unit', document.getElementById('unit').value);
-            formData.append('room_type', document.getElementById('room-type').value);
-            formData.append('speaker_type', document.getElementById('speaker-type').value);
-            
-            const rewFile = document.getElementById('rew-file').files[0];
-            if (rewFile) {
-                formData.append('rew_file', rewFile);
-            }
-            
-            try {
-                const response = await fetch('/api/magic-analysis', {
-                    method: 'POST',
-                    body: formData
-                });
-                
-                const result = await response.json();
-                
-                if (result.success) {
-                    displayResults(result);
-                } else {
-                    alert('Error: ' + result.error);
-                }
-            } catch (error) {
-                alert('Error performing analysis: ' + error.message);
-            } finally {
-                document.getElementById('loading').classList.add('hidden');
-            }
+    <div id="magic-results" style="display:none;">
+        <div class="results-grid">
+            <div class="result-card"><h3>Room Overview</h3><div id="mg-room" class="result-content"></div></div>
+            <div class="result-card"><h3>Schroeder & Modes</h3><div id="mg-modes" class="result-content"></div></div>
+        </div>
+        <div class="result-card"><h3>Mode Distribution</h3><div style="height:300px;"><canvas id="mg-chart"></canvas></div></div>
+        <div class="results-grid">
+            <div class="result-card"><h3>Speaker Placement</h3><div id="mg-speakers" class="result-content"></div></div>
+            <div class="result-card"><h3>Treatment Items</h3><div id="mg-treatment" class="result-content" style="max-height:400px;overflow-y:auto;"></div></div>
+        </div>
+        <div class="result-card"><h3>DIY Panel Plans</h3><div id="mg-diy" class="result-content"></div></div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let mgChart = null;
+async function runMagic(e) {
+    e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.textContent = 'Analyzing...'; btn.disabled = true;
+    try {
+        const formData = new FormData(e.target);
+        const resp = await fetch('/api/magic-analysis', {method:'POST', body:formData});
+        const d = await resp.json();
+        if (!d.success) { alert('Error: ' + (d.error||'Unknown')); return; }
+        document.getElementById('magic-results').style.display = '';
+
+        // Room overview
+        document.getElementById('mg-room').innerHTML = `
+            <p><strong>Volume:</strong> ${d.room.volume} m&sup3;</p>
+            <p><strong>Schroeder Freq:</strong> ${d.room.schroeder_frequency} Hz</p>
+            <p><strong>Target RT60:</strong> ${d.room.target_t60} ms</p>
+            <p><strong>Ratios:</strong> ${d.room.ratios.join(' : ')} (${d.room.ratio_quality})</p>
+        `;
+
+        // Modes
+        document.getElementById('mg-modes').innerHTML = `
+            <p><strong>Total Modes (< 300Hz):</strong> ${d.modes.modes.length}</p>
+            <p><strong>Bonello:</strong> <span class="${d.modes.bonello_pass?'good':'bad'}">${d.modes.bonello_pass?'PASSES':'FAILS'}</span></p>
+            <p>${d.modes.bonello_notes}</p>
+        `;
+
+        // Modes chart
+        if (mgChart) mgChart.destroy();
+        const modes = d.modes.modes.slice(0, 30);
+        const ctx = document.getElementById('mg-chart').getContext('2d');
+        mgChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: modes.map(m => m.frequency + 'Hz'),
+                datasets: [{label:'Modes', data: modes.map(m=>m.frequency),
+                    backgroundColor: modes.map(m => m.type==='Axial'?'#ef4444':m.type==='Tangential'?'#f59e0b':'#22c55e'), borderRadius:2}]
+            },
+            options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true,title:{display:true,text:'Hz'}}} }
         });
-        
-        function displayResults(data) {
-            const unit = data.unit === 'metric' ? 'm' : 'ft';
-            
-            // Overview stats
-            document.getElementById('overview-stats').innerHTML = `
-                <div class="stat-card">
-                    <div class="stat-value">${data.room.volume.toFixed(1)} ${unit}³</div>
-                    <div class="stat-label">Room Volume</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${data.room.schroeder_frequency} Hz</div>
-                    <div class="stat-label">Schroeder Frequency</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-value">${data.room.target_t60}ms</div>
-                    <div class="stat-label">Target RT60</div>
-                </div>
-                <div class="stat-card ${data.room.ratio_quality === 'Excellent' ? '' : 'warning'}">
-                    <div class="stat-value">${data.room.ratio_quality}</div>
-                    <div class="stat-label">Room Ratio Quality</div>
-                </div>
-            `;
-            
-            // Room modes chart
-            displayModesChart(data.modes);
-            
-            // Bonello analysis
-            document.getElementById('bonello-analysis').innerHTML = `
-                <h4>Bonello Criterion Analysis</h4>
-                <p class="${data.modes.bonello_pass ? 'success' : 'warning'}">
-                    Status: <strong>${data.modes.bonello_pass ? '✓ PASS' : '✗ FAIL'}</strong>
-                </p>
-                <p style="color: var(--text-muted);">${data.modes.bonello_notes}</p>
-            `;
-            
-            // REW analysis if available
-            if (data.rew) {
-                document.getElementById('rew-section').classList.remove('hidden');
-                displayREWChart(data.rew);
-                displayREWProblems(data.rew);
-            }
-            
-            // Speaker placement
-            displaySpeakerPlacement(data.speaker_placement, data.room);
-            
-            // Treatment plan
-            displayTreatmentPlan(data.treatment_plan, unit);
-            
-            // DIY panels
-            displayDIYPanels(data.diy_panels, unit);
-            
-            // Show results
-            document.getElementById('results').classList.remove('hidden');
-            document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
-        }
-        
-        function displayModesChart(modes) {
-            const ctx = document.getElementById('modesChart');
-            if (modesChart) modesChart.destroy();
-            
-            const axial = modes.modes.filter(m => m.type === 'Axial');
-            const tangential = modes.modes.filter(m => m.type === 'Tangential');
-            const oblique = modes.modes.filter(m => m.type === 'Oblique');
-            
-            modesChart = new Chart(ctx, {
-                type: 'scatter',
-                data: {
-                    datasets: [
-                        {
-                            label: 'Axial',
-                            data: axial.map(m => ({ x: m.frequency, y: 1.0 })),
-                            backgroundColor: 'rgba(239, 68, 68, 0.8)',
-                            pointRadius: 6
-                        },
-                        {
-                            label: 'Tangential',
-                            data: tangential.map(m => ({ x: m.frequency, y: 0.5 })),
-                            backgroundColor: 'rgba(251, 146, 60, 0.8)',
-                            pointRadius: 5
-                        },
-                        {
-                            label: 'Oblique',
-                            data: oblique.map(m => ({ x: m.frequency, y: 0.25 })),
-                            backgroundColor: 'rgba(250, 204, 21, 0.8)',
-                            pointRadius: 4
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: true,
-                    aspectRatio: 2,
-                    scales: {
-                        x: {
-                            type: 'linear',
-                            min: 0,
-                            max: 300,
-                            title: { display: true, text: 'Frequency (Hz)' }
-                        },
-                        y: { display: false, min: 0, max: 1.2 }
-                    },
-                    plugins: {
-                        legend: { position: 'top' },
-                        title: { display: true, text: 'Room Modes Distribution (up to 300 Hz)' }
-                    }
-                }
-            });
-        }
-        
-        function displayREWChart(rew) {
-            const ctx = document.getElementById('rewChart');
-            if (rewChart) rewChart.destroy();
-            
-            rewChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: rew.frequencies,
-                    datasets: [{
-                        label: 'Frequency Response',
-                        data: rew.magnitude,
-                        borderColor: 'rgb(99, 102, 241)',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        borderWidth: 2,
-                        pointRadius: 0
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    aspectRatio: 2.5,
-                    scales: {
-                        x: {
-                            type: 'logarithmic',
-                            title: { display: true, text: 'Frequency (Hz)' }
-                        },
-                        y: {
-                            title: { display: true, text: 'Magnitude (dB)' }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false }
-                    }
-                }
-            });
-        }
-        
-        function displayREWProblems(rew) {
-            const html = `
-                <h4>Measurement Analysis</h4>
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-value">${rew.peaks.length}</div>
-                        <div class="stat-label">Peaks Found</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${rew.dips.length}</div>
-                        <div class="stat-label">Dips Found</div>
-                    </div>
-                </div>
-                <div style="margin-top: 1rem;">
-                    <h5>Problem Frequencies:</h5>
-                    <ul style="list-style: disc; padding-left: 1.5rem;">
-                        ${rew.problem_frequencies.map(f => `<li>${f} Hz</li>`).join('')}
-                    </ul>
-                </div>
-            `;
-            document.getElementById('rew-problems').innerHTML = html;
-        }
-        
-        function displaySpeakerPlacement(placement, room) {
-            // Draw room diagram
-            const canvas = document.getElementById('room-canvas');
-            const ctx = canvas.getContext('2d');
-            const roomData = { length: room.length, width: room.width, height: room.height, unit: room.unit };
-            drawRoomDiagram(ctx, canvas, roomData, placement.placement);
-            
-            // Placement details
-            const unit = room.unit === 'metric' ? 'm' : 'ft';
-            document.getElementById('placement-details').innerHTML = `
-                <h4>👂 Listening Position</h4>
-                <p>X: ${placement.placement.listening_position.x.toFixed(2)} ${unit}</p>
-                <p>Y: ${placement.placement.listening_position.y.toFixed(2)} ${unit}</p>
-                <p>Z: ${placement.placement.listening_position.z.toFixed(2)} ${unit}</p>
-                
-                <h4 style="margin-top: 1rem;">🔈 Speakers</h4>
-                <p>Distance: ${placement.placement.speaker_distance} ${unit}</p>
-                <p>Angle: ${placement.placement.speaker_angle}°</p>
-                <p>Toe-in: ${placement.placement.toe_in_angle}°</p>
-            `;
-            
-            // Instructions
-            document.getElementById('placement-instructions').innerHTML = `
-                <h4>Setup Instructions:</h4>
-                <ol class="construction-steps">
-                    ${placement.setup_instructions.map(step => `<li>${step}</li>`).join('')}
-                </ol>
-            `;
-        }
-        
-        function drawRoomDiagram(ctx, canvas, roomData, placement) {
-            ctx.fillStyle = '#0f172a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            const padding = 40;
-            const scaleX = (canvas.width - 2 * padding) / roomData.width;
-            const scaleY = (canvas.height - 2 * padding) / roomData.length;
-            const scale = Math.min(scaleX, scaleY);
-            
-            const offsetX = (canvas.width - roomData.width * scale) / 2;
-            const offsetY = (canvas.height - roomData.length * scale) / 2;
-            
-            // Room outline
-            ctx.strokeStyle = '#64748b';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(offsetX, offsetY, roomData.width * scale, roomData.length * scale);
-            
-            // Labels
-            ctx.fillStyle = '#94a3b8';
-            ctx.font = '12px Inter';
-            ctx.textAlign = 'center';
-            ctx.fillText('FRONT', offsetX + roomData.width * scale / 2, offsetY - 10);
-            
-            function toCanvas(x, y) {
-                return { x: offsetX + x * scale, y: offsetY + y * scale };
-            }
-            
-            // Left speaker
-            const leftPos = toCanvas(placement.left_speaker.x, placement.left_speaker.y);
-            ctx.fillStyle = '#22c55e';
-            ctx.beginPath();
-            ctx.arc(leftPos.x, leftPos.y, 10, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.font = '10px Inter';
-            ctx.fillText('L', leftPos.x, leftPos.y + 4);
-            
-            // Right speaker
-            const rightPos = toCanvas(placement.right_speaker.x, placement.right_speaker.y);
-            ctx.fillStyle = '#22c55e';
-            ctx.beginPath();
-            ctx.arc(rightPos.x, rightPos.y, 10, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.fillStyle = '#fff';
-            ctx.fillText('R', rightPos.x, rightPos.y + 4);
-            
-            // Listener
-            const listenerPos = toCanvas(placement.listening_position.x, placement.listening_position.y);
-            ctx.fillStyle = '#6366f1';
-            ctx.beginPath();
-            ctx.arc(listenerPos.x, listenerPos.y, 12, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Triangle
-            ctx.strokeStyle = '#6366f1';
-            ctx.setLineDash([5, 5]);
-            ctx.beginPath();
-            ctx.moveTo(leftPos.x, leftPos.y);
-            ctx.lineTo(listenerPos.x, listenerPos.y);
-            ctx.lineTo(rightPos.x, rightPos.y);
-            ctx.lineTo(leftPos.x, leftPos.y);
-            ctx.stroke();
-            ctx.setLineDash([]);
-        }
-        
-        function displayTreatmentPlan(plan, unit) {
-            document.getElementById('treatment-items').innerHTML = plan.items.map((item, idx) => {
-                const priorityClass = item.priority_label.toLowerCase();
-                return `
-                    <div class="treatment-priority-${priorityClass}" style="margin-bottom: 1rem; padding: 1.25rem; background: var(--background); border-radius: 8px;">
-                        <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.5rem;">
-                            <div>
-                                <span class="status-badge ${priorityClass === 'critical' ? 'status-bad' : priorityClass === 'high' ? 'status-warning' : 'status-good'}">${item.priority_label}</span>
-                                <strong style="margin-left: 0.5rem; font-size: 1.1rem;">${item.name}</strong>
-                            </div>
-                            <span style="color: var(--text-muted);">Quantity: ${item.quantity}</span>
-                        </div>
-                        <p style="margin-bottom: 0.75rem;">${item.description}</p>
-                        <p><strong>📍 Where:</strong> ${item.placement}</p>
-                        ${item.dimensions ? `<p><strong>📐 Size:</strong> ${item.dimensions}</p>` : ''}
-                    </div>
-                `;
-            }).join('');
-            
-            // BOM
-            const bomBody = document.querySelector('#bom-table tbody');
-            bomBody.innerHTML = plan.bill_of_materials.map(item => `
-                <tr>
-                    <td>${item.item}</td>
-                    <td><strong>${item.quantity}</strong></td>
-                    <td>${item.unit}</td>
-                    <td style="color: var(--text-muted);">${item.notes || '-'}</td>
-                </tr>
-            `).join('');
-        }
-        
-        function displayDIYPanels(panels, unit) {
-            const unitLabel = unit === 'metric' ? 'mm' : 'in';
-            document.getElementById('diy-panels').innerHTML = panels.map((panel, idx) => `
-                <div class="panel-design" style="margin-bottom: 2rem; padding: 1.5rem; background: var(--background); border-radius: 8px;">
-                    <h4>${panel.type.replace(/_/g, ' ').toUpperCase()}</h4>
-                    
-                    <div style="margin: 1rem 0;">
-                        <strong>Specifications:</strong>
-                        <p>Dimensions: ${panel.specifications.outer_width} × ${panel.specifications.outer_height} × ${panel.specifications.total_depth} ${unitLabel}</p>
-                        <p>Effective Range: ${panel.performance.effective_frequency_range}</p>
-                        <p>NRC: ${panel.performance.nrc_estimate}</p>
-                    </div>
-                    
-                    <div style="margin: 1rem 0;">
-                        <strong>Materials:</strong>
-                        <ul style="list-style: disc; padding-left: 1.5rem;">
-                            ${panel.materials.map(m => `<li>${m.name} - ${m.quantity} ${m.dimensions || ''}</li>`).join('')}
-                        </ul>
-                    </div>
-                    
-                    <div style="margin: 1rem 0;">
-                        <strong>Construction Steps:</strong>
-                        <ol class="construction-steps">
-                            ${panel.construction_steps.map(step => `<li>${step}</li>`).join('')}
-                        </ol>
-                    </div>
-                    
-                    <details style="margin-top: 1rem;">
-                        <summary style="cursor: pointer; color: var(--primary); font-weight: 500;">💡 Tips & Safety</summary>
-                        <ul style="list-style: disc; padding-left: 1.5rem; margin-top: 0.5rem;">
-                            ${panel.tips.map(tip => `<li>${tip}</li>`).join('')}
-                        </ul>
-                    </details>
-                </div>
-            `).join('');
-        }
-    </script>
-    
-    <style>
-        .priority-critical { background: var(--accent); }
-        .priority-high { background: var(--secondary); }
-        .priority-medium { background: var(--primary); }
-        .priority-low { background: var(--text-muted); }
-        
-        .success { color: var(--secondary); }
-        .warning { color: var(--accent); }
-    </style>
-</body>
-</html>
+
+        // Speaker placement
+        const sp = d.speaker_placement;
+        document.getElementById('mg-speakers').innerHTML = '<pre style="white-space:pre-wrap;font-size:0.85em;">' + JSON.stringify(sp, null, 2) + '</pre>';
+
+        // Treatment
+        const items = d.treatment_plan.items || [];
+        document.getElementById('mg-treatment').innerHTML = items.map((it,i) => `
+            <div class="treatment-item priority-${it.priority||3}">
+                <h4>#${i+1} ${it.name||it.treatment_type||''}</h4>
+                <p>${it.description||''}</p>
+                <p><strong>Placement:</strong> ${it.placement||''}</p>
+                <p><strong>Dimensions:</strong> ${it.dimensions||''}</p>
+            </div>
+        `).join('') || '<p>No recommendations.</p>';
+
+        // DIY
+        const diyPanels = d.diy_panels || [];
+        document.getElementById('mg-diy').innerHTML = diyPanels.map(p => `
+            <div class="diy-panel-card">
+                <h4>${(p.type||'').replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</h4>
+                <p>${JSON.stringify(p.specifications||{})}</p>
+            </div>
+        `).join('') || '<p>No DIY plans generated.</p>';
+    } catch(err) { console.error(err); alert('Analysis error: ' + err.message); }
+    finally { btn.textContent = 'Run Complete Analysis'; btn.disabled = false; }
+}
+</script>
+{% endblock %}
