@@ -4,7 +4,7 @@
 <main class="container" style="padding-top:2rem;">
     <h1>Speaker & Listener Placement</h1>
     <p class="text-muted">Optimal monitor and listening positions using the 38% rule, SBIR analysis, and stereo triangle.</p>
-
+    
     <div class="calculator-layout">
         <div class="calc-inputs">
             <div class="result-card">
@@ -26,7 +26,12 @@
                             <select id="sp-type"><option value="nearfield">Nearfield</option><option value="midfield">Midfield</option><option value="main">Main</option></select>
                         </div>
                     </div>
-                    <button type="submit" class="btn-primary" style="width:100%">Calculate Placement</button>
+                    <button type="submit" class="btn-primary" style="width:100%">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:8px;">
+                            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+                        </svg>
+                        Calculate Placement
+                    </button>
                 </form>
                 {% if projects %}
                 <div class="form-group" style="margin-top:1rem;">
@@ -39,8 +44,19 @@
                 {% endif %}
             </div>
         </div>
+        
         <div class="calc-results" id="sp-results" style="display:none;">
-            <div class="result-card"><h3>Placement Results</h3><div id="sp-data" class="result-content"></div></div>
+            <div class="result-card">
+                <h3>Room Layout</h3>
+                <div style="text-align:center; margin-bottom:1.5rem;">
+                    <canvas id="room-canvas" width="600" height="600" style="background-color:#1a1d29; border-radius:8px; max-width:100%; box-shadow:0 4px 6px rgba(0,0,0,0.3);"></canvas>
+                </div>
+                
+                <h3>Placement Details</h3>
+                <div id="sp-metrics" class="metrics-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-bottom:1.5rem;"></div>
+                
+                <div id="sp-warnings"></div>
+            </div>
         </div>
     </div>
 </main>
@@ -51,10 +67,14 @@
 async function calcSpeakers(e) {
     e.preventDefault();
     const btn = e.target.querySelector('button[type="submit"]');
-    btn.textContent = 'Calculating...'; btn.disabled = true;
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:8px;animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Calculating...';
+    btn.disabled = true;
+    
     try {
         const resp = await fetch('/api/speaker-placement', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
             body: JSON.stringify({
                 length: parseFloat(document.getElementById('sp-length').value),
                 width: parseFloat(document.getElementById('sp-width').value),
@@ -65,11 +85,194 @@ async function calcSpeakers(e) {
         });
         const data = await resp.json();
         if (!data.success) { alert('Error: ' + data.error); return; }
+        
         document.getElementById('sp-results').style.display = '';
-        const p = data.placement;
-        document.getElementById('sp-data').innerHTML = '<pre style="white-space:pre-wrap;">' + JSON.stringify(p, null, 2) + '</pre>';
-    } catch(err) { console.error(err); alert('Error'); }
-    finally { btn.textContent = 'Calculate Placement'; btn.disabled = false; }
+        drawRoomLayout(data.placement, data.room);
+        displayMetrics(data.placement);
+        displayWarnings(data.placement);
+        
+    } catch(err) {
+        console.error(err);
+        alert('Error calculating placement');
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+
+function drawRoomLayout(placement, room) {
+    const canvas = document.getElementById('room-canvas');
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const height = canvas.height;
+    
+    ctx.clearRect(0, 0, width, height);
+    
+    // Calculate scaling
+    const padding = 80;
+    const roomWidth = room.width || room.length;
+    const roomLength = room.length || room.width;
+    const scaleX = (width - 2 * padding) / roomLength;
+    const scaleY = (height - 2 * padding - 40) / roomWidth;
+    const scale = Math.min(scaleX, scaleY);
+    
+    const offsetX = (width - roomLength * scale) / 2;
+    const offsetY = (height - 40 - roomWidth * scale) / 2;
+    
+    function toCanvasX(x) { return offsetX + x * scale; }
+    function toCanvasY(y) { return offsetY + y * scale; }
+    
+    // Draw grid
+    ctx.strokeStyle = '#2a2d3a';
+    ctx.lineWidth = 1;
+    const gridStep = 0.5;
+    
+    for (let x = 0; x <= roomLength; x += gridStep) {
+        ctx.beginPath();
+        ctx.moveTo(toCanvasX(x), toCanvasY(0));
+        ctx.lineTo(toCanvasX(x), toCanvasY(roomWidth));
+        ctx.stroke();
+    }
+    
+    for (let y = 0; y <= roomWidth; y += gridStep) {
+        ctx.beginPath();
+        ctx.moveTo(toCanvasX(0), toCanvasY(y));
+        ctx.lineTo(toCanvasX(roomLength), toCanvasY(y));
+        ctx.stroke();
+    }
+    
+    // Draw room outline
+    ctx.strokeStyle = '#6366f1';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(toCanvasX(0), toCanvasY(0), roomLength * scale, roomWidth * scale);
+    
+    // Wall labels
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('FRONT WALL', toCanvasX(roomLength / 2), toCanvasY(0) - 10);
+    ctx.fillText('REAR WALL', toCanvasX(roomLength / 2), toCanvasY(roomWidth) + 25);
+    
+    ctx.save();
+    ctx.translate(toCanvasX(0) - 30, toCanvasY(roomWidth / 2));
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText('LEFT WALL', 0, 0);
+    ctx.restore();
+    
+    ctx.save();
+    ctx.translate(toCanvasX(roomLength) + 30, toCanvasY(roomWidth / 2));
+    ctx.rotate(Math.PI / 2);
+    ctx.fillText('RIGHT WALL', 0, 0);
+    ctx.restore();
+    
+    // Draw stereo triangle
+    const leftPos = placement.left_speaker;
+    const rightPos = placement.right_speaker;
+    const listenerPos = placement.listening_position;
+    
+    ctx.strokeStyle = '#6366f144';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(toCanvasX(leftPos.x), toCanvasY(leftPos.y));
+    ctx.lineTo(toCanvasX(listenerPos.x), toCanvasY(listenerPos.y));
+    ctx.lineTo(toCanvasX(rightPos.x), toCanvasY(rightPos.y));
+    ctx.lineTo(toCanvasX(leftPos.x), toCanvasY(leftPos.y));
+    ctx.stroke();
+    ctx.setLineDash([]);
+    
+    // Draw speakers
+    function drawSpeaker(x, y, label, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(toCanvasX(x), toCanvasY(y), 12, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(label, toCanvasX(x), toCanvasY(y) - 20);
+    }
+    
+    // Draw listener
+    function drawListener(x, y) {
+        ctx.fillStyle = '#10b981';
+        ctx.beginPath();
+        ctx.arc(toCanvasX(x), toCanvasY(y), 10, 0, 2 * Math.PI);
+        ctx.fill();
+        
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('LISTENER', toCanvasX(x), toCanvasY(y) + 25);
+    }
+    
+    drawSpeaker(leftPos.x, leftPos.y, 'L', '#ef4444');
+    drawSpeaker(rightPos.x, rightPos.y, 'R', '#3b82f6');
+    drawListener(listenerPos.x, listenerPos.y);
+    
+    // Legend
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'left';
+    const legendY = height - 15;
+    ctx.fillText('Dimensions in ' + (room.unit || 'meters'), 10, legendY);
+}
+
+function displayMetrics(placement) {
+    const metricsEl = document.getElementById('sp-metrics');
+    const metrics = [
+        { label: 'Left Speaker', value: `X: ${placement.left_speaker.x.toFixed(2)}m, Y: ${placement.left_speaker.y.toFixed(2)}m` },
+        { label: 'Right Speaker', value: `X: ${placement.right_speaker.x.toFixed(2)}m, Y: ${placement.right_speaker.y.toFixed(2)}m` },
+        { label: 'Listening Position', value: `X: ${placement.listening_position.x.toFixed(2)}m, Y: ${placement.listening_position.y.toFixed(2)}m` },
+        { label: 'Speaker Separation', value: `${placement.speaker_separation.toFixed(2)}m` },
+        { label: 'Distance to Listener', value: `${placement.distance_to_listener.toFixed(2)}m` },
+    ];
+    
+    if (placement.stereo_angle) {
+        metrics.push({ label: 'Stereo Angle', value: `${placement.stereo_angle.toFixed(1)}°` });
+    }
+    
+    metricsEl.innerHTML = metrics.map(m => 
+        `<div style="background:#2a2d3a;padding:1rem;border-radius:6px;">
+            <div style="color:#9ca3af;font-size:0.875rem;margin-bottom:0.25rem;">${m.label}</div>
+            <div style="color:#ffffff;font-weight:600;">${m.value}</div>
+        </div>`
+    ).join('');
+}
+
+function displayWarnings(placement) {
+    const warningsEl = document.getElementById('sp-warnings');
+    
+    if (!placement.sbir_warnings || placement.sbir_warnings.length === 0) {
+        warningsEl.innerHTML = '<div style="background:#10b98120;border-left:4px solid #10b981;padding:1rem;border-radius:6px;color:#10b981;"><strong>✓ No SBIR Issues Detected</strong></div>';
+        return;
+    }
+    
+    const warningsHTML = placement.sbir_warnings.map(w => 
+        `<div style="background:#ef444420;border-left:4px solid #ef4444;padding:1rem;border-radius:6px;margin-bottom:0.5rem;">
+            <div style="color:#ef4444;font-weight:600;margin-bottom:0.5rem;">⚠ SBIR Warning: ${w.frequency}Hz</div>
+            <div style="color:#d1d5db;">${w.description}</div>
+            ${w.recommendation ? `<div style="color:#9ca3af;font-size:0.875rem;margin-top:0.5rem;">💡 ${w.recommendation}</div>` : ''}
+        </div>`
+    ).join('');
+    
+    warningsEl.innerHTML = '<h3 style="margin-top:1.5rem;margin-bottom:1rem;">SBIR Warnings</h3>' + warningsHTML;
 }
 </script>
+
+<style>
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
 {% endblock %}

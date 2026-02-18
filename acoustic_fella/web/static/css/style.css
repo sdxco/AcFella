@@ -660,3 +660,69 @@ body {
     max-width: 600px;
     margin: 2rem auto;
 }
+
+
+/* ============================================================ */
+/* Enhanced Button Styles */
+.btn-primary {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 0.75rem 1.5rem !important;
+    background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 12px !important;
+    font-size: 0.95rem !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    text-decoration: none !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+.btn-primary::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s;
+    pointer-events: none;
+}
+
+.btn-primary:hover::before {
+    left: 100%;
+}
+
+.btn-primary:hover { 
+    background: linear-gradient(135deg, #818cf8 0%, #a5b4fc 100%) !important;
+    box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+    transform: translateY(-2px) !important;
+}
+
+.btn-primary:active {
+    transform: translateY(0) !important;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
+}
+
+.btn-primary:disabled { 
+    opacity: 0.5 !important; 
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* Secondary button style */
+.btn-secondary {
+    background: linear-gradient(135deg, #4b5563 0%, #6b7280 100%) !important;
+    box-shadow: 0 4px 12px rgba(75, 85, 99, 0.25), 0 2px 4px rgba(0, 0, 0, 0.1) !important;
+}
+
+.btn-secondary:hover {
+    background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%) !important;
+    box-shadow: 0 6px 20px rgba(75, 85, 99, 0.4), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
+}
