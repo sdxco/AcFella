@@ -726,3 +726,111 @@ body {
     background: linear-gradient(135deg, #6b7280 0%, #9ca3af 100%) !important;
     box-shadow: 0 6px 20px rgba(75, 85, 99, 0.4), 0 3px 6px rgba(0, 0, 0, 0.15) !important;
 }
+
+
+/* ============================================================ */
+/* Enhanced Select/Dropdown Styles */
+.form-group select,
+select.form-select,
+select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%239ca3af' d='M8 11L3 6h10z'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 12px !important;
+    padding-right: 2.5rem !important;
+    cursor: pointer !important;
+    background-color: var(--bg-card) !important;
+    border: 2px solid var(--border) !important;
+    font-weight: 500 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.form-group select:hover,
+select.form-select:hover,
+select:hover {
+    border-color: var(--accent-light) !important;
+    background-color: var(--bg-card-hover) !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+.form-group select:focus,
+select.form-select:focus,
+select:focus {
+    outline: none !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 4px var(--accent-dim), 0 2px 8px rgba(99, 102, 241, 0.2) !important;
+    background-color: var(--bg-card-hover) !important;
+}
+
+.form-group select:active,
+select.form-select:active,
+select:active {
+    transform: scale(0.98) !important;
+}
+
+/* Enhanced Input Styles */
+.form-group input[type="number"],
+.form-group input[type="text"],
+.form-group input[type="email"],
+input.form-control {
+    background-color: var(--bg-card) !important;
+    border: 2px solid var(--border) !important;
+    font-weight: 500 !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.form-group input[type="number"]:hover,
+.form-group input[type="text"]:hover,
+.form-group input[type="email"]:hover,
+input.form-control:hover {
+    border-color: var(--accent-light) !important;
+    background-color: var(--bg-card-hover) !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+}
+
+.form-group input[type="number"]:focus,
+.form-group input[type="text"]:focus,
+.form-group input[type="email"]:focus,
+input.form-control:focus {
+    outline: none !important;
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 4px var(--accent-dim), 0 2px 8px rgba(99, 102, 241, 0.2) !important;
+    background-color: var(--bg-card-hover) !important;
+}
+
+/* Form labels with better typography */
+.form-group label {
+    font-weight: 600 !important;
+    color: var(--text-primary) !important;
+    font-size: 0.875rem !important;
+    letter-spacing: 0.01em !important;
+    margin-bottom: 0.5rem !important;
+}
+
+/* Add subtle animation to form fields */
+.form-group input,
+.form-group select {
+    position: relative !important;
+}
+
+@keyframes inputGlow {
+    0%, 100% {
+        box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.2);
+    }
+}
+
+/* Better disabled state */
+.form-group input:disabled,
+.form-group select:disabled,
+input:disabled,
+select:disabled {
+    opacity: 0.5 !important;
+    cursor: not-allowed !important;
+    background-color: var(--bg-input) !important;
+}

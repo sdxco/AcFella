@@ -12,6 +12,13 @@
             {% for tag in project.tags %}<span class="tag">{{ tag }}</span>{% endfor %}
         </div>
         <div class="project-actions">
+            <button class="btn-primary btn-sm" onclick="showEditModal()" style="margin-right:0.5rem;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                Edit Room
+            </button>
             <button class="btn-danger btn-sm" onclick="deleteProject('{{project.id}}')">Delete</button>
         </div>
     </div>
@@ -138,6 +145,57 @@
     </section>
     {% endif %}
 </main>
+
+<!-- Edit Room Modal -->
+<div id="editModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:var(--bg-card); padding:2rem; border-radius:var(--radius-lg); max-width:500px; width:90%; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <h2 style="margin-bottom:1.5rem;">Edit Room Dimensions</h2>
+        <form id="editForm">
+            <div class="form-group">
+                <label>Room Name</label>
+                <input type="text" id="edit-name" value="{{ project.name }}" required>
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <input type="text" id="edit-description" value="{{ project.description }}">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Length (m)</label>
+                    <input type="number" id="edit-length" step="0.01" value="{{ project.geometry.length if project.geometry else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Width (m)</label>
+                    <input type="number" id="edit-width" step="0.01" value="{{ project.geometry.width if project.geometry else '' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Height (m)</label>
+                    <input type="number" id="edit-height" step="0.01" value="{{ project.geometry.height if project.geometry else '' }}" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Room Type</label>
+                <select id="edit-room-type">
+                    <option value="recording_studio" {% if project.room_type == 'recording_studio' %}selected{% endif %}>Recording Studio</option>
+                    <option value="mixing_room" {% if project.room_type == 'mixing_room' %}selected{% endif %}>Mixing Room</option>
+                    <option value="mastering_room" {% if project.room_type == 'mastering_room' %}selected{% endif %}>Mastering Room</option>
+                    <option value="listening_room" {% if project.room_type == 'listening_room' %}selected{% endif %}>Listening Room</option>
+                    <option value="live_room" {% if project.room_type == 'live_room' %}selected{% endif %}>Live Room</option>
+                    <option value="home_theater" {% if project.room_type == 'home_theater' %}selected{% endif %}>Home Theater</option>
+                    <option value="other" {% if project.room_type == 'other' %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Notes</label>
+                <textarea id="edit-notes" rows="3" style="width:100%; padding:0.6rem; background:var(--bg-input); color:var(--text-primary); border:2px solid var(--border); border-radius:var(--radius); font-family:var(--font);">{{ project.notes }}</textarea>
+            </div>
+            <div style="display:flex; gap:0.75rem; margin-top:1.5rem;">
+                <button type="submit" class="btn-primary" style="flex:1;">Save Changes</button>
+                <button type="button" class="btn-secondary" onclick="hideEditModal()" style="flex:1; background:var(--bg-input); border:2px solid var(--border);">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -149,5 +207,56 @@ async function deleteProject(id) {
         window.location.href = '/projects';
     } catch(e) { alert('Error deleting project'); }
 }
+
+function showEditModal() {
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'flex';
+}
+
+function hideEditModal() {
+    const modal = document.getElementById('editModal');
+    modal.style.display = 'none';
+}
+
+document.getElementById('editForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const data = {
+        name: document.getElementById('edit-name').value,
+        description: document.getElementById('edit-description').value,
+        room_type: document.getElementById('edit-room-type').value,
+        notes: document.getElementById('edit-notes').value,
+        geometry: {
+            length: parseFloat(document.getElementById('edit-length').value),
+            width: parseFloat(document.getElementById('edit-width').value),
+            height: parseFloat(document.getElementById('edit-height').value)
+        }
+    };
+    
+    try {
+        const resp = await fetch('/api/projects/{{ project.id }}', {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        
+        const result = await resp.json();
+        
+        if (result.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + result.error);
+        }
+    } catch(err) {
+        console.error(err);
+        alert('Error updating project');
+    }
+});
+
+document.getElementById('editModal').addEventListener('click', (e) => {
+    if (e.target.id === 'editModal') {
+        hideEditModal();
+    }
+});
 </script>
 {% endblock %}

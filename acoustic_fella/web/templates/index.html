@@ -1,83 +1,122 @@
 {% extends "base.html" %}
-{% block title %}AcFella - Dashboard{% endblock %}
+{% block title %}AcFella - Professional Acoustic Engineering{% endblock %}
 {% block content %}
 <main class="container" style="padding-top:2rem;">
-    <div class="hero-compact">
-        <h1>AcFella Dashboard</h1>
-        <p class="hero-subtitle">Professional acoustic analysis & treatment planning</p>
+    <!-- Hero Section -->
+    <div class="hero-compact" style="text-align:center; padding:3rem 1rem; background:linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(129,140,248,0.05) 100%); border-radius:var(--radius-lg); margin-bottom:3rem;">
+        <h1 style="font-size:2.5rem; margin-bottom:1rem; background:linear-gradient(135deg, #6366f1 0%, #a5b4fc 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;">AcFella</h1>
+        <p class="hero-subtitle" style="font-size:1.25rem; color:var(--text-secondary); max-width:600px; margin:0 auto;">Professional acoustic analysis & treatment planning for acousticians</p>
     </div>
+
+    <!-- Core Tools - Primary Focus -->
+    <section class="section">
+        <h2 style="text-align:center; margin-bottom:2rem; font-size:1.75rem;">Core Analysis Tools</h2>
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px, 1fr)); gap:1.5rem; margin-bottom:3rem;">
+            <!-- Speaker Placement - Most Important -->
+            <a href="/speaker-placement" class="tool-card" style="border:2px solid var(--accent); box-shadow:0 8px 24px rgba(99,102,241,0.3); position:relative; overflow:hidden;">
+                <div style="position:absolute; top:10px; right:10px; background:var(--accent); color:white; padding:0.25rem 0.75rem; border-radius:20px; font-size:0.75rem; font-weight:600;">FEATURED</div>
+                <div class="tool-icon" style="font-size:3rem; margin-bottom:1rem;">&#128264;</div>
+                <h3 style="font-size:1.5rem; margin-bottom:0.75rem;">Speaker Placement</h3>
+                <p style="color:var(--text-secondary); line-height:1.6;">Calculate optimal monitor and listening positions using the 38% rule, SBIR analysis, and stereo triangle geometry. Visual 2D room layout with color-coded positions.</p>
+                <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--accent); font-weight:600;">Start Analysis →</div>
+            </a>
+
+            <!-- Room Modes -->
+            <a href="/room-analysis" class="tool-card" style="border:2px solid var(--border);">
+                <div class="tool-icon" style="font-size:3rem; margin-bottom:1rem;">&#128208;</div>
+                <h3 style="font-size:1.5rem; margin-bottom:0.75rem;">Room Modes Calculator</h3>
+                <p style="color:var(--text-secondary); line-height:1.6;">Analyze axial, tangential & oblique modes. Bonello diagram, optimal room ratios, and frequency response prediction for accurate acoustic measurements.</p>
+                <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--accent); font-weight:600;">Analyze Modes →</div>
+            </a>
+
+            <!-- Porous Absorber -->
+            <a href="/porous-absorber" class="tool-card" style="border:2px solid var(--border);">
+                <div class="tool-icon" style="font-size:3rem; margin-bottom:1rem;">&#128200;</div>
+                <h3 style="font-size:1.5rem; margin-bottom:0.75rem;">Porous Absorber</h3>
+                <p style="color:var(--text-secondary); line-height:1.6;">Calculate absorption coefficients using Delany-Bazley and Miki models. Material presets, custom parameters, and detailed frequency response analysis.</p>
+                <div style="margin-top:1rem; padding-top:1rem; border-top:1px solid var(--border); color:var(--accent); font-weight:600;">Calculate Absorption →</div>
+            </a>
+        </div>
+    </section>
 
     <!-- Projects Section -->
     <section class="section">
         <div class="section-header">
             <h2>Your Projects</h2>
-            <button class="btn-primary btn-sm" onclick="showNewProjectModal()">+ New Project</button>
+            <button class="btn-primary btn-sm" onclick="showNewProjectModal()">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
+                    <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                New Project
+            </button>
         </div>
+        {% if projects %}
         <div class="projects-grid">
             {% for p in projects %}
-            <div class="project-card" onclick="window.location='/project/{{p.id}}'">
+            <div class="project-card" onclick="window.location='/project/{{p.id}}'" style="cursor:pointer; transition:all 0.3s; border:2px solid var(--border);">
                 <div class="project-card-header">
                     <h3>{{ p.name }}</h3>
                     <span class="badge">{{ p.room_type | replace('_', ' ') | title }}</span>
                 </div>
                 <p class="text-muted">{{ p.description }}</p>
                 {% if p.volume %}
-                <p class="project-meta">Volume: {{ "%.1f"|format(p.volume) }} m&sup3;</p>
+                <p class="project-meta" style="margin-top:0.75rem; color:var(--accent);">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                    {{ "%.1f"|format(p.volume) }} m³
+                </p>
                 {% endif %}
-                <div class="project-tags">
+                {% if p.tags %}
+                <div class="project-tags" style="margin-top:0.75rem;">
                     {% for tag in p.tags %}
                     <span class="tag">{{ tag }}</span>
                     {% endfor %}
                 </div>
+                {% endif %}
             </div>
             {% endfor %}
-            <div class="project-card project-card-new" onclick="showNewProjectModal()">
+            <div class="project-card project-card-new" onclick="showNewProjectModal()" style="cursor:pointer; border:2px dashed var(--border); background:transparent;">
                 <div style="text-align:center;padding:2rem;">
-                    <div style="font-size:3rem;margin-bottom:1rem;">+</div>
-                    <p>Create New Project</p>
+                    <div style="font-size:3rem;margin-bottom:1rem; color:var(--accent);">+</div>
+                    <p style="color:var(--text-primary); font-weight:600;">Create New Project</p>
+                    <p style="color:var(--text-secondary); font-size:0.875rem; margin-top:0.5rem;">Start a new acoustic analysis</p>
                 </div>
             </div>
         </div>
+        {% else %}
+        <div style="text-align:center; padding:3rem; background:var(--bg-card); border-radius:var(--radius-lg); border:2px dashed var(--border);">
+            <div style="font-size:3rem; margin-bottom:1rem;">📁</div>
+            <h3 style="margin-bottom:0.75rem;">No Projects Yet</h3>
+            <p style="color:var(--text-secondary); margin-bottom:1.5rem;">Create your first project to start analyzing room acoustics</p>
+            <button class="btn-primary" onclick="showNewProjectModal()">Create First Project</button>
+        </div>
+        {% endif %}
     </section>
 
-    <!-- Tools Section -->
+    <!-- Additional Tools -->
     <section class="section">
-        <h2>Tools</h2>
+        <h2>Additional Tools</h2>
         <div class="tools-grid">
-            <a href="/room-analysis" class="tool-card">
-                <div class="tool-icon">&#128208;</div>
-                <h3>Room Modes</h3>
-                <p>Calculate axial, tangential & oblique modes. Bonello analysis, optimal ratios.</p>
-            </a>
-            <a href="/porous-absorber" class="tool-card">
-                <div class="tool-icon">&#128200;</div>
-                <h3>Porous Absorber</h3>
-                <p>Delany-Bazley & Miki models. Absorption coefficient vs frequency with air gap.</p>
-            </a>
             <a href="/magic" class="tool-card">
                 <div class="tool-icon">&#127919;</div>
                 <h3>Complete Analysis</h3>
-                <p>Full room analysis: modes, treatment plan, speaker placement, DIY plans.</p>
+                <p>Full room analysis combining modes, treatment plan, and speaker placement in one comprehensive report.</p>
             </a>
             <a href="/treatment-plan" class="tool-card">
                 <div class="tool-icon">&#128295;</div>
                 <h3>Treatment Plan</h3>
-                <p>Generate treatment recommendations with bill of materials.</p>
-            </a>
-            <a href="/speaker-placement" class="tool-card">
-                <div class="tool-icon">&#128264;</div>
-                <h3>Speaker Placement</h3>
-                <p>Optimal monitor & listener positions using the 38% rule and SBIR analysis.</p>
+                <p>Generate professional treatment recommendations with detailed bill of materials and placement guides.</p>
             </a>
             <a href="/diy-calculator" class="tool-card">
                 <div class="tool-icon">&#128736;</div>
                 <h3>DIY Calculator</h3>
-                <p>Build guides for broadband absorbers, bass traps, QRD diffusers, Helmholtz resonators.</p>
+                <p>Build guides for broadband absorbers, bass traps, QRD diffusers, and Helmholtz resonators.</p>
             </a>
             <a href="/hybrid-panel-simple" class="tool-card">
                 <div class="tool-icon">&#10024;</div>
                 <h3>Smart Panel Builder</h3>
-                <p>Hybrid absorber/reflector panels with MLS patterns.</p>
+                <p>Design hybrid absorber/reflector panels with maximum length sequence patterns.</p>
             </a>
         </div>
     </section>
@@ -85,7 +124,7 @@
 
 <!-- New Project Modal -->
 <div id="new-project-modal" class="modal hidden">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width:500px;">
         <div class="modal-header">
             <h2>Create New Project</h2>
             <button class="modal-close" onclick="hideModal('new-project-modal')">&times;</button>
