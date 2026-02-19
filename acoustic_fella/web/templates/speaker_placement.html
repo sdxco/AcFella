@@ -87,9 +87,14 @@ async function calcSpeakers(e) {
         if (!data.success) { alert('Error: ' + data.error); return; }
         
         document.getElementById('sp-results').style.display = '';
-        drawRoomLayout(data.placement, data.room);
-        displayMetrics(data.placement);
-        displayWarnings(data.placement);
+        // API returns: data.placement = full report, data.placement.placement = coords,
+        // data.placement.room_dimensions = room size
+        const report = data.placement;
+        const placement = report.placement;
+        const room = report.room_dimensions;
+        drawRoomLayout(placement, room);
+        displayMetrics(placement);
+        displayWarnings(placement, report.common_mistakes || []);
         
     } catch(err) {
         console.error(err);
@@ -233,12 +238,15 @@ function displayMetrics(placement) {
         { label: 'Left Speaker', value: `X: ${placement.left_speaker.x.toFixed(2)}m, Y: ${placement.left_speaker.y.toFixed(2)}m` },
         { label: 'Right Speaker', value: `X: ${placement.right_speaker.x.toFixed(2)}m, Y: ${placement.right_speaker.y.toFixed(2)}m` },
         { label: 'Listening Position', value: `X: ${placement.listening_position.x.toFixed(2)}m, Y: ${placement.listening_position.y.toFixed(2)}m` },
-        { label: 'Speaker Separation', value: `${placement.speaker_separation.toFixed(2)}m` },
-        { label: 'Distance to Listener', value: `${placement.distance_to_listener.toFixed(2)}m` },
+        { label: 'Speaker Separation', value: `${Math.abs(placement.right_speaker.x - placement.left_speaker.x).toFixed(2)}m` },
+        { label: 'Distance to Listener', value: `${placement.speaker_distance ? placement.speaker_distance.toFixed(2) + 'm' : 'N/A'}` },
     ];
     
-    if (placement.stereo_angle) {
-        metrics.push({ label: 'Stereo Angle', value: `${placement.stereo_angle.toFixed(1)}°` });
+    if (placement.speaker_angle) {
+        metrics.push({ label: 'Stereo Angle', value: `${placement.speaker_angle.toFixed(1)}°` });
+    }
+    if (placement.toe_in_angle) {
+        metrics.push({ label: 'Toe-In', value: `${placement.toe_in_angle.toFixed(1)}°` });
     }
     
     metricsEl.innerHTML = metrics.map(m => 
@@ -249,23 +257,30 @@ function displayMetrics(placement) {
     ).join('');
 }
 
-function displayWarnings(placement) {
+function displayWarnings(placement, commonMistakes) {
     const warningsEl = document.getElementById('sp-warnings');
+    let html = '';
     
-    if (!placement.sbir_warnings || placement.sbir_warnings.length === 0) {
-        warningsEl.innerHTML = '<div style="background:#10b98120;border-left:4px solid #10b981;padding:1rem;border-radius:6px;color:#10b981;"><strong>✓ No SBIR Issues Detected</strong></div>';
-        return;
+    // Notes from placement calculation (SBIR info etc.)
+    const notes = placement.notes || [];
+    if (notes.length > 0) {
+        html += '<div style="background:#ef444420;border-left:4px solid #ef4444;padding:1rem;border-radius:6px;margin-bottom:0.75rem;"><strong style="color:#ef4444;">⚠ Placement Notes:</strong><ul style="margin:0.5rem 0 0 1.25rem;color:#d1d5db;">' +
+            notes.map(n => `<li style="margin-bottom:0.25rem;">${n}</li>`).join('') +
+            '</ul></div>';
     }
     
-    const warningsHTML = placement.sbir_warnings.map(w => 
-        `<div style="background:#ef444420;border-left:4px solid #ef4444;padding:1rem;border-radius:6px;margin-bottom:0.5rem;">
-            <div style="color:#ef4444;font-weight:600;margin-bottom:0.5rem;">⚠ SBIR Warning: ${w.frequency}Hz</div>
-            <div style="color:#d1d5db;">${w.description}</div>
-            ${w.recommendation ? `<div style="color:#9ca3af;font-size:0.875rem;margin-top:0.5rem;">💡 ${w.recommendation}</div>` : ''}
-        </div>`
-    ).join('');
+    // Common mistakes
+    if (commonMistakes && commonMistakes.length > 0) {
+        html += '<div style="background:#f59e0b20;border-left:4px solid #f59e0b;padding:1rem;border-radius:6px;"><strong style="color:#f59e0b;">💡 Common Mistakes to Avoid:</strong><ul style="margin:0.5rem 0 0 1.25rem;color:#d1d5db;">' +
+            commonMistakes.map(m => `<li style="margin-bottom:0.25rem;">${m}</li>`).join('') +
+            '</ul></div>';
+    }
     
-    warningsEl.innerHTML = '<h3 style="margin-top:1.5rem;margin-bottom:1rem;">SBIR Warnings</h3>' + warningsHTML;
+    if (!html) {
+        html = '<div style="background:#10b98120;border-left:4px solid #10b981;padding:1rem;border-radius:6px;color:#10b981;"><strong>✓ Placement looks good!</strong></div>';
+    }
+    
+    warningsEl.innerHTML = html;
 }
 </script>
 
