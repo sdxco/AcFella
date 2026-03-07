@@ -18,6 +18,13 @@
 #mode-info-bar{position:absolute;bottom:0;left:0;right:0;background:rgba(12,31,23,.88);padding:6px 14px;display:flex;justify-content:space-between;align-items:center;font-size:.82rem;backdrop-filter:blur(6px);}
 #mode-info-bar .mf{font-weight:700;color:var(--accent-light);font-size:1rem;}
 .mini-label{font-size:.68rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;margin-bottom:2px;}
+#pos-tooltip{position:absolute;display:none;background:rgba(12,20,16,.92);color:#e0e7e3;padding:6px 10px;border-radius:6px;font-size:.72rem;pointer-events:none;white-space:nowrap;z-index:10;backdrop-filter:blur(6px);border:1px solid rgba(34,197,94,.25);line-height:1.5;}
+#pos-tooltip .pt-val{font-weight:700;margin-bottom:1px;}
+.close-pairs-wrap{margin-top:.5rem;padding:.4rem .6rem;background:rgba(220,38,38,.06);border-radius:6px;border-left:3px solid var(--danger);font-size:.74rem;}
+.close-pairs-wrap .cp-head{font-weight:600;color:var(--danger);margin-bottom:.25rem;}
+.close-pairs-wrap .cp-list{line-height:1.7;color:var(--text-primary);}
+.close-pairs-wrap .cp-gap{opacity:.4;font-size:.6rem;vertical-align:super;margin-left:1px;}
+.close-pairs-wrap .cp-foot{font-size:.68rem;color:var(--text-muted);margin-top:.2rem;}
 </style>
 {% endblock %}
 {% block content %}
@@ -85,6 +92,8 @@
 let scene, camera, renderer, controls, meshGroup;
 let roomL, roomW, roomH;
 let modeChart = null, allModes = [], schroederFreq = 300;
+let curP=0, curQ=0, curR=0;
+const raycaster = new THREE.Raycaster();
 
 class SimpleOrbit {
     constructor(cam, el) {
@@ -129,6 +138,31 @@ function init3D() {
     bar.innerHTML='<span class="mf" id="bar-freq">—</span><span id="bar-type" style="color:var(--text-muted);font-size:.78rem;"></span>';
     wrap.appendChild(bar);
 
+    // Position tooltip on hover
+    const tip = document.createElement('div'); tip.id='pos-tooltip'; wrap.appendChild(tip);
+    renderer.domElement.addEventListener('mousemove', e => {
+        if(!roomL) return;
+        const rect=renderer.domElement.getBoundingClientRect();
+        const mx=((e.clientX-rect.left)/rect.width)*2-1;
+        const my=-((e.clientY-rect.top)/rect.height)*2+1;
+        raycaster.setFromCamera(new THREE.Vector2(mx,my),camera);
+        const hits=raycaster.intersectObjects(meshGroup.children.filter(c=>c.isMesh));
+        if(hits.length){
+            const pt=hits[0].point;
+            const dF=pt.z+roomL/2, dL=pt.x+roomW/2, dFl=pt.y+roomH/2;
+            let pr=1;
+            if(curP>0)pr*=Math.cos(curP*Math.PI*dF/roomL);
+            if(curQ>0)pr*=Math.cos(curQ*Math.PI*dL/roomW);
+            if(curR>0)pr*=Math.cos(curR*Math.PI*dFl/roomH);
+            const pA=Math.abs(pr),pCol=pA>.6?'#ff6b6b':pA>.3?'#ffa726':'#4fc3f7';
+            tip.style.display='block';
+            tip.style.left=(e.clientX-rect.left+14)+'px';
+            tip.style.top=(e.clientY-rect.top-40)+'px';
+            tip.innerHTML=`<div class="pt-val" style="color:${pCol}">Pressure ${(pA*100).toFixed(0)}%</div>Front wall: ${dF.toFixed(2)}m<br>Left wall: ${dL.toFixed(2)}m<br>Floor: ${dFl.toFixed(2)}m`;
+        } else { tip.style.display='none'; }
+    });
+    renderer.domElement.addEventListener('mouseleave',()=>{document.getElementById('pos-tooltip').style.display='none';});
+
     (function anim(){ requestAnimationFrame(anim); renderer.render(scene,camera); })();
     window.addEventListener('resize', () => { const w2=wrap.clientWidth,h2=wrap.clientHeight; camera.aspect=w2/h2; camera.updateProjectionMatrix(); renderer.setSize(w2,h2); });
 }
@@ -160,13 +194,34 @@ function buildPressureVolume(p, q, r) {
     const wg=new THREE.BoxGeometry(roomW,roomH,roomL);
     meshGroup.add(new THREE.LineSegments(new THREE.EdgesGeometry(wg), new THREE.LineBasicMaterial({color:0x22c55e,linewidth:2})));
 
-    // Front/rear walls on Z axis (length=depth), narrow walls
-    [{text:'FRONT (speakers)',pos:[0,-roomH/2-0.3,-roomL/2]},{text:'REAR',pos:[0,-roomH/2-0.3,roomL/2]},{text:`${roomW.toFixed(2)}m × ${roomL.toFixed(2)}m`,pos:[0,roomH/2+0.3,0]}].forEach(({text,pos})=>{
+    // Wall labels
+    [{text:'FRONT',pos:[0,-roomH/2-0.3,-roomL/2]},{text:'REAR',pos:[0,-roomH/2-0.3,roomL/2]}].forEach(({text,pos})=>{
         const c=document.createElement('canvas');c.width=256;c.height=64;
         const cx=c.getContext('2d');cx.fillStyle='#22c55e';cx.font='bold 28px Inter,sans-serif';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(text,128,32);
         const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true}));
-        s.position.set(...pos);s.scale.set(1.5,0.4,1);meshGroup.add(s);
+        s.position.set(...pos);s.scale.set(1.2,0.35,1);meshGroup.add(s);
     });
+
+    // Floor grid with distance rulers
+    const gridMat=new THREE.LineBasicMaterial({color:0x22c55e,transparent:true,opacity:0.18});
+    const gy=-roomH/2, step=Math.max(roomL,roomW)>6?1:0.5;
+    for(let x=0;x<=roomW+.001;x+=step){
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x-roomW/2,gy,-roomL/2),new THREE.Vector3(x-roomW/2,gy,roomL/2)]);
+        meshGroup.add(new THREE.Line(g,gridMat));
+    }
+    for(let z=0;z<=roomL+.001;z+=step){
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-roomW/2,gy,z-roomL/2),new THREE.Vector3(roomW/2,gy,z-roomL/2)]);
+        meshGroup.add(new THREE.Line(g,gridMat));
+    }
+    const mkLbl=(txt,px,py,pz)=>{
+        const c=document.createElement('canvas');c.width=64;c.height=32;
+        const cx=c.getContext('2d');cx.fillStyle='#7a9488';cx.font='16px monospace';cx.textAlign='center';cx.textBaseline='middle';cx.fillText(txt,32,16);
+        const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true}));
+        s.position.set(px,py,pz);s.scale.set(0.35,0.18,1);meshGroup.add(s);
+    };
+    for(let x=0;x<=roomW+.001;x+=step) mkLbl(x.toFixed(1),x-roomW/2,gy-0.12,-roomL/2-0.2);
+    for(let z=0;z<=roomL+.001;z+=step) mkLbl(z.toFixed(1),-roomW/2-0.25,gy-0.12,z-roomL/2);
+
     const mx=Math.max(roomL,roomW,roomH); controls.radius=mx*1.8; controls.target.set(0,0,0); controls.update();
 }
 
@@ -213,8 +268,12 @@ async function computeModes(e) {
         <p><strong>Modes shown:</strong> ${allModes.length}</p>`;
     if(data.bonello && !data.bonello.passes_bonello)
         infoHtml+=`<div class="alert alert-warning" style="margin-top:.5rem;font-size:.78rem;">${data.bonello.recommendation}</div>`;
-    if(data.problems && data.problems.length)
-        infoHtml+=data.problems.map(p=>`<div class="alert alert-${p.severity==='high'?'danger':'warning'}" style="margin-top:.4rem;font-size:.78rem;">${p.recommendation}</div>`).join('');
+    if(data.problems && data.problems.length){
+        const pairs=data.problems.map(p=>{const r=p.recommendation.match(/([\d.]+) Hz and ([\d.]+) Hz.*\(([\d.]+) Hz apart/);return r?{f1:r[1],f2:r[2],gap:r[3],sev:p.severity}:null;}).filter(Boolean);
+        if(pairs.length){
+            infoHtml+=`<div class="close-pairs-wrap"><div class="cp-head">${pairs.length} Close Mode Pair${pairs.length>1?'s':''}</div><div class="cp-list">${pairs.map(p=>`<span style="${p.sev==='high'?'font-weight:600;':''}">${p.f1}\u2194${p.f2}<span class="cp-gap">${p.gap}</span></span>`).join(' \u00b7 ')}</div><div class="cp-foot">Bass trapping recommended</div></div>`;
+        }
+    }
     document.getElementById('room-info-content').innerHTML=infoHtml;
 
     // Ratios
@@ -232,6 +291,7 @@ function selectMode(indices) {
     const m=indices.match(/\((\d+),(\d+),(\d+)\)/);
     if(!m) return;
     const p=+m[1],q=+m[2],r=+m[3];
+    curP=p; curQ=q; curR=r;
     if(p===0&&q===0&&r===0) return;
     const c=344, freq=(c/2)*Math.sqrt((p/roomL)**2+(q/roomW)**2+(r/roomH)**2);
     const active=[p>0,q>0,r>0].filter(Boolean).length;
