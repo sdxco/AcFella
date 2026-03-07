@@ -48,7 +48,7 @@ body {
     box-shadow: var(--shadow-sm);
 }
 .nav-brand a { text-decoration: none; color: inherit; display: flex; align-items: center; gap: 0.6rem; }
-.logo { font-size: 1.6rem; }
+.logo { display: flex; align-items: center; color: var(--accent); }
 .brand-name { font-size: 1.25rem; font-weight: 800; color: var(--accent-dark); letter-spacing: -0.02em; }
 .nav-links { display: flex; list-style: none; gap: 0.35rem; align-items: center; }
 .nav-links a {

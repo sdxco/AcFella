@@ -13,7 +13,7 @@
     <nav class="navbar">
         <div class="nav-brand">
             <a href="/">
-                <span class="logo">🎛️</span>
+                <span class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 16l5-9 4 5 3-4 4 3 4-7"/><path d="M2 20h20"/></svg></span>
                 <span class="brand-name">AcFella</span>
             </a>
         </div>
@@ -24,7 +24,7 @@
             <li><a href="/speaker-placement" class="{% if request.path == '/speaker-placement' %}active{% endif %}">Speaker Placement</a></li>
             <li><a href="/porous-absorber" class="{% if request.path == '/porous-absorber' %}active{% endif %}">Absorber Calc</a></li>
         </ul>
-        <div class="nav-mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</div>
+        <div class="nav-mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></div>
     </nav>
     {% block content %}{% endblock %}
     <footer class="footer">

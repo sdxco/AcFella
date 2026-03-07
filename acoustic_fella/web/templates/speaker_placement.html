@@ -91,7 +91,7 @@
                 </div>
                 <!-- Drag alerts -->
                 <div class="card" id="drag-alerts-card" style="display:none;">
-                    <h4>⚡ Live Position Alerts</h4>
+                    <h4>Live Position Alerts</h4>
                     <div id="drag-alerts"></div>
                 </div>
                 <div class="card">
@@ -315,7 +315,7 @@ function drawRoom(pl, room) {
     ctx.fillStyle=g;ctx.beginPath();ctx.arc(lcx,lcy,18,0,Math.PI*2);ctx.fill();
     ctx.beginPath();ctx.arc(lcx,lcy,9,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill();
     ctx.fillStyle='#fff';ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillText('🎧',lcx,lcy+1);
+    ctx.fillText('LP',lcx,lcy+1);
 
     // Sub
     if (sub) {
