@@ -1,0 +1,407 @@
+{% extends "base.html" %}
+{% block title %}3D Room Mode Visualizer — AcFella{% endblock %}
+{% block extra_head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+{% endblock %}
+{% block content %}
+<main class="container" style="padding-top:2rem;padding-bottom:4rem;">
+    <h1>3D Room Mode Visualizer</h1>
+    <p class="text-muted" style="max-width:700px;margin-bottom:1.5rem;">
+        Interactive standing wave pressure visualization. See where bass builds up (red) and disappears (blue) inside your room — just like <strong>amroc</strong>.
+    </p>
+
+    <div style="display:grid;grid-template-columns:320px 1fr;gap:1.5rem;align-items:start;">
+        <!-- Controls -->
+        <div>
+            <div class="card" style="margin-bottom:1rem;">
+                <h3>Room Dimensions</h3>
+                <form id="mode-form" onsubmit="computeModes(event)">
+                    {% if project %}<div class="project-badge">Project: {{ project.name }}</div>{% endif %}
+                    <div class="form-row">
+                        <div class="form-group"><label>Length (m)</label><input type="number" id="rm-l" step="0.01" min="1" max="30" value="{{ project.geometry.length if project and project.geometry else '5.00' }}" required></div>
+                        <div class="form-group"><label>Width (m)</label><input type="number" id="rm-w" step="0.01" min="1" max="30" value="{{ project.geometry.width if project and project.geometry else '4.00' }}" required></div>
+                    </div>
+                    <div class="form-group"><label>Height (m)</label><input type="number" id="rm-h" step="0.01" min="1" max="10" value="{{ project.geometry.height if project and project.geometry else '3.00' }}" required></div>
+                    <div class="form-group"><label>RT60 (s)</label><input type="number" id="rm-rt60" step="0.01" min="0.1" max="3" value="0.3"></div>
+                    <button type="submit" class="btn btn-primary" style="width:100%">Calculate Modes</button>
+                </form>
+                {% if projects %}
+                <div class="form-group" style="margin-top:1rem;">
+                    <label>Load Project</label>
+                    <select onchange="if(this.value)window.location='/room-modes?project='+this.value">
+                        <option value="">Select…</option>
+                        {% for p in projects %}<option value="{{p.id}}" {% if project and p.id==project.id %}selected{% endif %}>{{p.name}}</option>{% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Mode selector -->
+            <div class="card" id="mode-select-card" style="display:none;">
+                <h3>Select Mode to Visualize</h3>
+                <div class="form-row">
+                    <div class="form-group"><label>Length (p)</label><select id="sel-p"><option>0</option><option selected>1</option><option>2</option><option>3</option><option>4</option></select></div>
+                    <div class="form-group"><label>Width (q)</label><select id="sel-q"><option selected>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+                    <div class="form-group"><label>Height (r)</label><select id="sel-r"><option selected>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+                </div>
+                <div id="mode-freq" style="font-size:1.1rem;font-weight:700;color:var(--accent-dark);text-align:center;margin:.5rem 0;"></div>
+                <p id="mode-desc" style="font-size:.82rem;color:var(--text-secondary);text-align:center;"></p>
+            </div>
+
+            <!-- Mode list -->
+            <div class="card" id="mode-list-card" style="display:none;max-height:350px;overflow-y:auto;">
+                <h3>All Modes (≤ 300 Hz)</h3>
+                <table class="data-table" style="font-size:.8rem;">
+                    <thead><tr><th>Mode</th><th>Freq</th><th>Type</th></tr></thead>
+                    <tbody id="mode-tbody"></tbody>
+                </table>
+            </div>
+
+            <!-- Room info -->
+            <div class="card" id="room-info-card" style="display:none;">
+                <h3>Room Info</h3>
+                <div id="room-info-content"></div>
+            </div>
+        </div>
+
+        <!-- 3D Viewer -->
+        <div>
+            <div class="viewer-3d-wrap" id="viewer-wrap" style="height:520px;display:flex;align-items:center;justify-content:center;">
+                <p style="color:#7a9488;font-size:.9rem;">Enter dimensions and click <strong>Calculate Modes</strong></p>
+            </div>
+            <p style="font-size:.75rem;color:var(--text-muted);margin-top:.5rem;text-align:center;">
+                🖱️ Drag to rotate · Scroll to zoom · Click a mode in the table to visualize it
+            </p>
+
+            <!-- Charts -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.5rem;">
+                <div class="card" id="chart-card-1" style="display:none;">
+                    <h3>Mode Distribution</h3>
+                    <div style="height:250px;"><canvas id="mode-chart"></canvas></div>
+                </div>
+                <div class="card" id="chart-card-2" style="display:none;">
+                    <h3>Room Ratios</h3>
+                    <div id="ratio-content"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+/* ── State ─────────────────────────────────────────────────── */
+let scene, camera, renderer, controls, meshGroup;
+let roomL, roomW, roomH;
+let modeChart = null;
+let allModes = [];
+
+/* ── Three.js orbit controls (minimal inline) ─────────────── */
+class SimpleOrbit {
+    constructor(cam, el) {
+        this.cam = cam; this.el = el;
+        this.theta = Math.PI/4; this.phi = Math.PI/4; this.radius = 8;
+        this.target = new THREE.Vector3();
+        let drag = false, px, py;
+        el.addEventListener('pointerdown', e => { drag=true; px=e.clientX; py=e.clientY; el.setPointerCapture(e.pointerId); });
+        el.addEventListener('pointermove', e => {
+            if (!drag) return;
+            this.theta -= (e.clientX-px)*0.005;
+            this.phi = Math.max(0.1, Math.min(Math.PI-0.1, this.phi-(e.clientY-py)*0.005));
+            px=e.clientX; py=e.clientY; this.update();
+        });
+        el.addEventListener('pointerup', () => drag=false);
+        el.addEventListener('wheel', e => { this.radius=Math.max(2,Math.min(20,this.radius+e.deltaY*0.01)); this.update(); e.preventDefault(); }, {passive:false});
+        this.update();
+    }
+    update() {
+        const {theta,phi,radius,target,cam}=this;
+        cam.position.set(
+            target.x+radius*Math.sin(phi)*Math.cos(theta),
+            target.y+radius*Math.cos(phi),
+            target.z+radius*Math.sin(phi)*Math.sin(theta)
+        );
+        cam.lookAt(target);
+    }
+}
+
+/* ── Init 3D ───────────────────────────────────────────────── */
+function init3D() {
+    const wrap = document.getElementById('viewer-wrap');
+    wrap.innerHTML = '';
+    const W = wrap.clientWidth, H = wrap.clientHeight;
+
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0c1f17);
+
+    camera = new THREE.PerspectiveCamera(50, W/H, 0.1, 100);
+    renderer = new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(W, H);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    wrap.appendChild(renderer.domElement);
+
+    controls = new SimpleOrbit(camera, renderer.domElement);
+
+    // Lights
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+    const dl = new THREE.DirectionalLight(0xffffff, 0.4);
+    dl.position.set(5, 8, 5);
+    scene.add(dl);
+
+    meshGroup = new THREE.Group();
+    scene.add(meshGroup);
+
+    function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
+    animate();
+
+    window.addEventListener('resize', () => {
+        const w2 = wrap.clientWidth, h2 = wrap.clientHeight;
+        camera.aspect = w2/h2; camera.updateProjectionMatrix();
+        renderer.setSize(w2, h2);
+    });
+}
+
+/* ── Build pressure volume ─────────────────────────────────── */
+function buildPressureVolume(p, q, r) {
+    while (meshGroup.children.length) meshGroup.remove(meshGroup.children[0]);
+
+    const res = 40;
+    const geom = new THREE.BoxGeometry(roomL, roomH, roomW, res, res, res);
+    const pos = geom.attributes.position;
+    const colors = new Float32Array(pos.count * 3);
+
+    for (let i = 0; i < pos.count; i++) {
+        // Box geometry ranges: x [-L/2, L/2], y [-H/2, H/2], z [-W/2, W/2]
+        const x = pos.getX(i) + roomL/2;   // 0..L
+        const y = pos.getY(i) + roomH/2;   // 0..H
+        const z = pos.getZ(i) + roomW/2;   // 0..W
+
+        // Standing wave: cos(n*pi*x/L), pressure = product of cos for each dim
+        let pressure = 1;
+        if (p > 0) pressure *= Math.cos(p * Math.PI * x / roomL);
+        if (q > 0) pressure *= Math.cos(q * Math.PI * z / roomW);
+        if (r > 0) pressure *= Math.cos(r * Math.PI * y / roomH);
+
+        const absP = Math.abs(pressure);
+        // Color: red = high pressure, blue = null, green = mid
+        let R, G, B;
+        if (absP > 0.5) {
+            const t = (absP - 0.5) * 2;
+            R = 0.2 + 0.8*t; G = 0.5*(1-t); B = 0.1*(1-t);
+        } else {
+            const t = absP * 2;
+            R = 0.1*t; G = 0.2 + 0.3*t; B = 0.5 + 0.3*(1-t);
+        }
+        colors[i*3]   = R;
+        colors[i*3+1] = G;
+        colors[i*3+2] = B;
+    }
+
+    geom.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    const mat = new THREE.MeshBasicMaterial({vertexColors: true, transparent: true, opacity: 0.7, side: THREE.DoubleSide});
+    const mesh = new THREE.Mesh(geom, mat);
+    meshGroup.add(mesh);
+
+    // Wireframe room outline
+    const wireGeom = new THREE.BoxGeometry(roomL, roomH, roomW);
+    const wireMat = new THREE.LineBasicMaterial({color: 0x22c55e, linewidth: 2});
+    const wireframe = new THREE.LineSegments(new THREE.EdgesGeometry(wireGeom), wireMat);
+    meshGroup.add(wireframe);
+
+    // Labels using sprites
+    const labels = [
+        {text: 'FRONT', pos: [0, -roomH/2-0.3, -roomW/2]},
+        {text: 'REAR',  pos: [0, -roomH/2-0.3,  roomW/2]},
+        {text: `${roomL.toFixed(2)}m`, pos: [0, roomH/2+0.3, 0]},
+    ];
+    labels.forEach(({text, pos}) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#22c55e'; ctx.font = 'bold 28px Inter, sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, 128, 32);
+        const tex = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({map: tex, transparent: true});
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.set(...pos);
+        sprite.scale.set(1.5, 0.4, 1);
+        meshGroup.add(sprite);
+    });
+
+    // Camera
+    const maxDim = Math.max(roomL, roomW, roomH);
+    controls.radius = maxDim * 1.8;
+    controls.target.set(0, 0, 0);
+    controls.update();
+}
+
+/* ── Compute modes ─────────────────────────────────────────── */
+async function computeModes(e) {
+    e.preventDefault();
+    roomL = parseFloat(document.getElementById('rm-l').value);
+    roomW = parseFloat(document.getElementById('rm-w').value);
+    roomH = parseFloat(document.getElementById('rm-h').value);
+    const rt60 = parseFloat(document.getElementById('rm-rt60').value);
+
+    // Call API
+    const resp = await fetch('/api/analyze-room', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({length:roomL, width:roomW, height:roomH, unit:'metric', rt60:rt60, max_frequency:500})
+    });
+    const data = await resp.json();
+    if (!data.success) { alert(data.error); return; }
+
+    allModes = data.modes;
+
+    // Show panels
+    ['mode-select-card','mode-list-card','room-info-card','chart-card-1','chart-card-2'].forEach(id =>
+        document.getElementById(id).style.display = '');
+
+    // Init 3D if needed
+    if (!scene) init3D();
+
+    // Default: first axial (1,0,0)
+    updateVisualization();
+
+    // Mode list table
+    const tbody = document.getElementById('mode-tbody');
+    tbody.innerHTML = allModes.map((m,i) => {
+        const cls = 'mode-' + m.type;
+        return `<tr style="cursor:pointer;" onclick="selectMode('${m.indices}')">
+            <td><strong class="${cls}">${m.indices}</strong></td>
+            <td>${m.frequency} Hz</td>
+            <td class="${cls}">${m.type}</td>
+        </tr>`;
+    }).join('');
+
+    // Room info
+    const ri = data.room_info;
+    const sch = data.schroeder;
+    document.getElementById('room-info-content').innerHTML = `
+        <p><strong>Volume:</strong> ${ri.volume} m³</p>
+        <p><strong>Surface:</strong> ${ri.surface_area} m²</p>
+        <p><strong>Schroeder freq:</strong> ${sch.frequency} Hz</p>
+        <p><strong>Total modes ≤500Hz:</strong> ${allModes.length}</p>
+    `;
+
+    // Ratios
+    const rat = data.ratios;
+    document.getElementById('ratio-content').innerHTML = `
+        <p style="font-size:.9rem;margin-bottom:.75rem;"><strong>Your ratios:</strong> ${rat.current_ratios.join(' : ')}</p>
+        <p style="font-size:.88rem;margin-bottom:.5rem;"><strong>Best match:</strong> ${rat.best_match} (deviation: ${rat.best_deviation})</p>
+        ${Object.entries(rat.comparisons).map(([name,c]) => `
+            <div style="display:flex;justify-content:space-between;font-size:.82rem;padding:.3rem 0;border-bottom:1px solid var(--border-light);">
+                <span>${name}: ${c.optimal_ratios.join(' : ')}</span>
+                <span class="${c.match_quality==='Excellent'||c.match_quality==='Good'?'good':'warning'}">${c.match_quality}</span>
+            </div>
+        `).join('')}
+    `;
+
+    // Chart
+    buildChart(data);
+
+    // Bonello
+    const bon = data.bonello;
+    if (bon && !bon.passes_bonello) {
+        document.getElementById('room-info-content').innerHTML += `
+            <div class="alert alert-warning" style="margin-top:.75rem;">
+                <strong>Bonello:</strong> ${bon.recommendation}
+            </div>`;
+    }
+
+    // Problems
+    if (data.problems && data.problems.length) {
+        document.getElementById('room-info-content').innerHTML += `
+            <div style="margin-top:.75rem;">
+                <strong style="font-size:.85rem;">Problem Frequencies:</strong>
+                ${data.problems.map(p => `
+                    <div class="alert alert-${p.severity === 'high' ? 'danger' : 'warning'}" style="margin-top:.4rem;font-size:.82rem;">
+                        ${p.recommendation}
+                    </div>`).join('')}
+            </div>`;
+    }
+}
+
+function selectMode(indices) {
+    // Parse "(p,q,r)"
+    const m = indices.match(/\((\d+),(\d+),(\d+)\)/);
+    if (!m) return;
+    document.getElementById('sel-p').value = m[1];
+    document.getElementById('sel-q').value = m[2];
+    document.getElementById('sel-r').value = m[3];
+    updateVisualization();
+}
+
+function updateVisualization() {
+    const p = parseInt(document.getElementById('sel-p').value);
+    const q = parseInt(document.getElementById('sel-q').value);
+    const r = parseInt(document.getElementById('sel-r').value);
+
+    if (p === 0 && q === 0 && r === 0) {
+        document.getElementById('mode-freq').textContent = 'Select at least one non-zero index';
+        document.getElementById('mode-desc').textContent = '';
+        return;
+    }
+
+    const c = 344;
+    const freq = (c/2) * Math.sqrt((p/roomL)**2 + (q/roomW)**2 + (r/roomH)**2);
+    const active = [p>0, q>0, r>0].filter(Boolean).length;
+    const type = active === 1 ? 'Axial' : active === 2 ? 'Tangential' : 'Oblique';
+
+    document.getElementById('mode-freq').textContent = `${freq.toFixed(1)} Hz — ${type} mode (${p},${q},${r})`;
+    document.getElementById('mode-desc').textContent =
+        type === 'Axial' ? 'Strongest mode type. -3dB per reflection. Priority for bass trapping.' :
+        type === 'Tangential' ? 'Medium energy. -6dB per reflection. Two-wall interaction.' :
+        'Weakest. -9dB per reflection. Three-wall interaction.';
+
+    buildPressureVolume(p, q, r);
+}
+
+// Listen for selector changes
+['sel-p','sel-q','sel-r'].forEach(id =>
+    document.getElementById(id).addEventListener('change', updateVisualization));
+
+function buildChart(data) {
+    const ctx = document.getElementById('mode-chart').getContext('2d');
+    if (modeChart) modeChart.destroy();
+
+    const axial = data.modes.filter(m => m.type === 'axial');
+    const tangential = data.modes.filter(m => m.type === 'tangential');
+    const oblique = data.modes.filter(m => m.type === 'oblique');
+
+    // Frequency bins
+    const binSize = 10;
+    const maxF = 300;
+    const labels = [];
+    const aData = [], tData = [], oData = [];
+    for (let f = 0; f < maxF; f += binSize) {
+        labels.push(f + binSize/2);
+        aData.push(axial.filter(m => m.frequency >= f && m.frequency < f+binSize).length);
+        tData.push(tangential.filter(m => m.frequency >= f && m.frequency < f+binSize).length);
+        oData.push(oblique.filter(m => m.frequency >= f && m.frequency < f+binSize).length);
+    }
+
+    modeChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {label:'Axial', data:aData, backgroundColor:'rgba(220,38,38,0.7)', stack:'a'},
+                {label:'Tangential', data:tData, backgroundColor:'rgba(217,119,6,0.7)', stack:'a'},
+                {label:'Oblique', data:oData, backgroundColor:'rgba(22,163,74,0.7)', stack:'a'},
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: {title:{display:true, text:'Frequency (Hz)'}},
+                y: {title:{display:true, text:'Mode Count'}, beginAtZero:true, ticks:{stepSize:1}}
+            },
+            plugins: {legend: {position:'top'}}
+        }
+    });
+}
+</script>
+{% endblock %}

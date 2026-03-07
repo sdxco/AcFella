@@ -5,78 +5,31 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}AcFella{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     {% block extra_head %}{% endblock %}
 </head>
 <body>
     <nav class="navbar">
         <div class="nav-brand">
-            <a href="/" style="text-decoration:none;color:inherit;display:flex;align-items:center;gap:0.5rem;">
-                <span class="logo">&#127899;</span>
+            <a href="/">
+                <span class="logo">🎛️</span>
                 <span class="brand-name">AcFella</span>
             </a>
         </div>
         <ul class="nav-links">
-            <li><a href="/" class="{% if request.path == '/' %}active{% endif %}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                Home
-            </a></li>
-            <li><a href="/projects" class="{% if '/project' in request.path %}active{% endif %}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-                </svg>
-                Projects
-            </a></li>
-            <li><a href="/speaker-placement" class="{% if request.path == '/speaker-placement' %}active{% endif %}" style="background:var(--accent-dim); font-weight:600;">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle;margin-right:4px;">
-                    <rect x="9" y="2" width="6" height="20" rx="1"></rect><circle cx="12" cy="8" r="2"></circle><circle cx="12" cy="16" r="3"></circle>
-                </svg>
-                Speaker Placement
-            </a></li>
-            <li><a href="/room-analysis" class="{% if request.path == '/room-analysis' %}active{% endif %}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                </svg>
-                Room Modes
-            </a></li>
-            <li><a href="/porous-absorber" class="{% if request.path == '/porous-absorber' %}active{% endif %}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
-                    <line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
-                Porous Absorber
-            </a></li>
-            <li class="nav-dropdown">
-                <a href="#" class="{% if request.path in ['/magic', '/treatment-plan', '/diy-calculator', '/hybrid-panel-simple'] %}active{% endif %}">
-                    More Tools &#9662;
-                </a>
-                <ul class="dropdown-menu">
-                    <li><a href="/magic">Complete Analysis</a></li>
-                    <li><a href="/treatment-plan">Treatment Plan</a></li>
-                    <li><a href="/diy-calculator">DIY Calculator</a></li>
-                    <li><a href="/hybrid-panel-simple">Panel Builder</a></li>
-                </ul>
-            </li>
+            <li><a href="/" class="{% if request.path == '/' %}active{% endif %}">Home</a></li>
+            <li><a href="/projects" class="{% if '/project' in request.path %}active{% endif %}">Projects</a></li>
+            <li><a href="/room-modes" class="{% if request.path == '/room-modes' %}active{% endif %}">Room Modes 3D</a></li>
+            <li><a href="/speaker-placement" class="{% if request.path == '/speaker-placement' %}active{% endif %}">Speaker Placement</a></li>
+            <li><a href="/porous-absorber" class="{% if request.path == '/porous-absorber' %}active{% endif %}">Absorber Calc</a></li>
         </ul>
-            </li>
-            <li class="nav-dropdown">
-                <a href="#" class="{% if request.path in ['/treatment-plan', '/diy-calculator', '/hybrid-panel-simple'] %}active{% endif %}">Treatment &#9662;</a>
-                <ul class="dropdown-menu">
-                    <li><a href="/treatment-plan">Treatment Plan</a></li>
-                    <li><a href="/diy-calculator">DIY Calculator</a></li>
-                    <li><a href="/hybrid-panel-simple">Smart Panel Builder</a></li>
-                </ul>
-            </li>
-            <li><a href="/speaker-placement" class="{% if request.path == '/speaker-placement' %}active{% endif %}">Speakers</a></li>
-        </ul>
-        <div class="nav-mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">&#9776;</div>
+        <div class="nav-mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')">☰</div>
     </nav>
     {% block content %}{% endblock %}
     <footer class="footer">
         <div class="container">
-            <p>AcFella - Professional Acoustic Engineering Platform</p>
+            <p>AcFella — Professional Acoustic Consulting Platform</p>
         </div>
     </footer>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>

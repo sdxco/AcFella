@@ -89,33 +89,19 @@ def project_detail(project_id):
     return render_template('project_detail.html', project=p.to_dict())
 
 
+@app.route('/room-modes')
+def room_modes():
+    project = get_project_context()
+    pdict = project.to_dict() if project else None
+    return render_template('room_modes.html', project=pdict, projects=all_projects_list())
+
+
+# Legacy redirect
 @app.route('/room-analysis')
 def room_analysis():
-    project = get_project_context()
-    pdict = project.to_dict() if project else None
-    return render_template('room_analysis.html', project=pdict, projects=all_projects_list())
-
-
-@app.route('/treatment-plan')
-def treatment_plan():
-    project = get_project_context()
-    pdict = project.to_dict() if project else None
-    return render_template('treatment_plan.html', project=pdict, projects=all_projects_list())
-
-
-@app.route('/diy-calculator')
-def diy_calculator():
-    return render_template('diy_calculator.html')
-
-
-@app.route('/hybrid-panel')
-def hybrid_panel():
-    return render_template('hybrid_panel.html')
-
-
-@app.route('/hybrid-panel-simple')
-def hybrid_panel_simple():
-    return render_template('hybrid_panel_simple.html')
+    from flask import redirect
+    pid = request.args.get('project', '')
+    return redirect(f'/room-modes?project={pid}' if pid else '/room-modes')
 
 
 @app.route('/speaker-placement')
@@ -125,17 +111,9 @@ def speaker_placement():
     return render_template('speaker_placement.html', project=pdict, projects=all_projects_list())
 
 
-@app.route('/magic')
-def magic_analysis():
-    project = get_project_context()
-    pdict = project.to_dict() if project else None
-    return render_template('magic_analysis.html', project=pdict, projects=all_projects_list())
-
-
 @app.route('/porous-absorber')
 def porous_absorber():
-    presets = porous_calc.get_material_presets()
-    return render_template('porous_absorber.html', presets=presets)
+    return render_template('porous_absorber.html')
 
 
 # ============================================================================
@@ -402,8 +380,13 @@ def calculate_speaker_placement():
         use_metric = data.get('unit', 'metric') == 'metric'
         speaker_type = data.get('speaker_type', 'nearfield')
         optimizer = SpeakerPlacementOptimizer(length, width, height, use_metric)
-        report = optimizer.generate_placement_report(speaker_type)
-        return jsonify({"success": True, "placement": report})
+        options = optimizer.generate_three_options(speaker_type)
+        unit = "m" if use_metric else "ft"
+        return jsonify({
+            "success": True,
+            "options": options,
+            "room": {"length": length, "width": width, "height": height, "unit": unit}
+        })
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
 

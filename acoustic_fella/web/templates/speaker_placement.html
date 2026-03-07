@@ -1,293 +1,452 @@
 {% extends "base.html" %}
-{% block title %}Speaker Placement - AcFella{% endblock %}
+{% block title %}Speaker & Sub Placement — AcFella{% endblock %}
 {% block content %}
-<main class="container" style="padding-top:2rem;">
-    <h1>Speaker & Listener Placement</h1>
-    <p class="text-muted">Optimal monitor and listening positions using the 38% rule, SBIR analysis, and stereo triangle.</p>
-    
-    <div class="calculator-layout">
-        <div class="calc-inputs">
-            <div class="result-card">
-                <h3>Room Dimensions</h3>
-                <form id="sp-form" onsubmit="calcSpeakers(event)">
-                    {% if project %}<div class="project-badge">Project: {{ project.name }}</div>{% endif %}
-                    <div class="form-row">
-                        <div class="form-group"><label>Length</label><input type="number" id="sp-length" step="0.01" value="{{ project.geometry.length if project and project.geometry else '4.20' }}" required></div>
-                        <div class="form-group"><label>Width</label><input type="number" id="sp-width" step="0.01" value="{{ project.geometry.width if project and project.geometry else '2.83' }}" required></div>
-                        <div class="form-group"><label>Height</label><input type="number" id="sp-height" step="0.01" value="{{ project.geometry.height if project and project.geometry else '2.41' }}" required></div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Unit</label>
-                            <select id="sp-unit"><option value="metric">Meters</option><option value="imperial">Feet</option></select>
-                        </div>
-                        <div class="form-group">
-                            <label>Speaker Type</label>
-                            <select id="sp-type"><option value="nearfield">Nearfield</option><option value="midfield">Midfield</option><option value="main">Main</option></select>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn-primary" style="width:100%">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:8px;">
-                            <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-                        </svg>
-                        Calculate Placement
-                    </button>
-                </form>
-                {% if projects %}
-                <div class="form-group" style="margin-top:1rem;">
-                    <label>Load from project:</label>
-                    <select onchange="if(this.value)window.location='/speaker-placement?project='+this.value">
-                        <option value="">Select project...</option>
-                        {% for p in projects %}<option value="{{p.id}}" {% if project and p.id == project.id %}selected{% endif %}>{{p.name}}</option>{% endfor %}
-                    </select>
-                </div>
-                {% endif %}
+<main class="container" style="padding-top:2rem;padding-bottom:4rem;">
+    <h1>Speaker &amp; Subwoofer Placement</h1>
+    <p class="text-muted" style="max-width:700px;margin-bottom:1.5rem;">
+        Three evidence-based placement options with room mode analysis, SBIR scoring, and stereo geometry.
+        <strong>Drag speakers and subwoofer</strong> in the room to see real-time acoustic feedback.
+    </p>
+
+    <!-- INPUT -->
+    <div class="card" style="max-width:660px;margin-bottom:2rem;">
+        <h3>Room Dimensions</h3>
+        <form id="sp-form" onsubmit="calcSpeakers(event)">
+            {% if project %}<div class="project-badge">Project: {{ project.name }}</div>{% endif %}
+            <div class="form-row">
+                <div class="form-group"><label>Length (front→rear)</label><input type="number" id="sp-length" step="0.01" min="1" value="{{ project.geometry.length if project and project.geometry else '4.20' }}" required></div>
+                <div class="form-group"><label>Width (left→right)</label><input type="number" id="sp-width" step="0.01" min="1" value="{{ project.geometry.width if project and project.geometry else '2.83' }}" required></div>
             </div>
+            <div class="form-row">
+                <div class="form-group"><label>Height</label><input type="number" id="sp-height" step="0.01" min="1" value="{{ project.geometry.height if project and project.geometry else '2.41' }}" required></div>
+                <div class="form-group"><label>Unit</label><select id="sp-unit"><option value="metric">Meters</option><option value="imperial">Feet</option></select></div>
+                <div class="form-group"><label>Speaker Type</label><select id="sp-type"><option value="nearfield">Nearfield</option><option value="midfield">Midfield</option><option value="main">Main</option></select></div>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%">Calculate 3 Placement Options</button>
+        </form>
+        {% if projects %}
+        <div class="form-group" style="margin-top:1rem;">
+            <label>Load from project</label>
+            <select onchange="if(this.value)window.location='/speaker-placement?project='+this.value">
+                <option value="">Select…</option>
+                {% for p in projects %}<option value="{{p.id}}" {% if project and p.id==project.id %}selected{% endif %}>{{p.name}}</option>{% endfor %}
+            </select>
         </div>
-        
-        <div class="calc-results" id="sp-results" style="display:none;">
-            <div class="result-card">
-                <h3>Room Layout</h3>
-                <div style="text-align:center; margin-bottom:1.5rem;">
-                    <canvas id="room-canvas" width="600" height="600" style="background-color:#1a1d29; border-radius:8px; max-width:100%; box-shadow:0 4px 6px rgba(0,0,0,0.3);"></canvas>
+        {% endif %}
+    </div>
+
+    <!-- RESULTS -->
+    <div id="sp-results" style="display:none;">
+        <!-- Option pills -->
+        <div id="option-tabs" style="display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1.75rem;"></div>
+
+        <!-- Detail: 2 columns -->
+        <div id="option-detail" style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;align-items:start;">
+            <!-- LEFT: canvas + metrics -->
+            <div>
+                <div class="card" style="padding:1rem;">
+                    <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:.5rem;">
+                        <div>
+                            <h4 id="det-name" style="margin:0;"></h4>
+                            <p id="det-tagline" style="color:var(--text-secondary);font-size:.82em;margin:.2rem 0 0;"></p>
+                        </div>
+                        <div id="det-score-badge" style="font-size:.75em;font-weight:700;padding:3px 8px;border-radius:5px;background:var(--accent);color:#fff;white-space:nowrap;"></div>
+                    </div>
+                    <canvas id="room-canvas" width="480" height="400" style="width:100%;border-radius:8px;background:#0c1f17;display:block;cursor:grab;"></canvas>
+                    <p style="color:var(--text-muted);font-size:.72em;text-align:center;margin-top:.35rem;">
+                        🖱️ Drag speakers (L/R) or subwoofer (S) to reposition — alerts update in real time
+                    </p>
                 </div>
-                
-                <h3>Placement Details</h3>
-                <div id="sp-metrics" class="metrics-grid" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:1rem; margin-bottom:1.5rem;"></div>
-                
-                <div id="sp-warnings"></div>
+                <div class="card" style="margin-top:1rem;">
+                    <h4>Stereo Geometry</h4>
+                    <div id="sp-metrics" style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-top:.5rem;"></div>
+                </div>
+            </div>
+
+            <!-- RIGHT: analysis -->
+            <div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <h4>Acoustic Character</h4>
+                    <p id="det-character" style="line-height:1.65;margin-top:.5rem;font-size:.9em;"></p>
+                    <div style="margin-top:.75rem;padding:.5rem .75rem;background:var(--bg-input);border-radius:6px;">
+                        <span style="color:var(--text-muted);font-size:.72em;text-transform:uppercase;">Best For</span><br>
+                        <span id="det-best-for" style="font-weight:600;font-size:.88em;"></span>
+                    </div>
+                </div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <h4>Room Mode Response at Listener</h4>
+                    <p style="font-size:.72em;color:var(--text-muted);margin:.2rem 0 .5rem;">Green = balanced (20–70%) · Yellow = moderate · Red = peak or null</p>
+                    <p id="mode-summary" style="color:var(--text-secondary);font-size:.82em;margin-bottom:.5rem;"></p>
+                    <div id="mode-bars"></div>
+                </div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                        <div><h5 style="color:var(--accent);margin-bottom:.4rem;">✓ Pros</h5><ul id="pros-list" style="margin:0;padding-left:1rem;font-size:.84em;line-height:1.85;"></ul></div>
+                        <div><h5 style="color:var(--danger);margin-bottom:.4rem;">✗ Cons</h5><ul id="cons-list" style="margin:0;padding-left:1rem;font-size:.84em;line-height:1.85;"></ul></div>
+                    </div>
+                </div>
+                <div class="card" style="margin-bottom:1rem;">
+                    <h4>SBIR Boundary Analysis</h4>
+                    <div id="sp-warnings" style="margin-top:.5rem;"></div>
+                </div>
+                <!-- Drag alerts -->
+                <div class="card" id="drag-alerts-card" style="display:none;">
+                    <h4>⚡ Live Position Alerts</h4>
+                    <div id="drag-alerts"></div>
+                </div>
+                <div class="card">
+                    <h4>Setup Instructions</h4>
+                    <ol id="setup-steps" style="margin:.5rem 0 0;padding-left:1.2rem;font-size:.84em;line-height:1.9;"></ol>
+                </div>
             </div>
         </div>
     </div>
+    <div id="sp-error" style="display:none;padding:1rem;border-radius:8px;margin-top:1rem;" class="alert alert-danger"></div>
 </main>
+
+<style>
+@media(max-width:720px) { #option-detail { grid-template-columns:1fr!important; } .option-pill { max-width:100%; } }
+</style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
+let allOptions=null, allRoom=null, activeIdx=0;
+/* Drag state */
+let dragTarget=null, dragStartX, dragStartY;
+let customPositions = {}; // {left: {x,y}, right: {x,y}, sub: {x,y}}
+
 async function calcSpeakers(e) {
     e.preventDefault();
-    const btn = e.target.querySelector('button[type="submit"]');
-    const originalText = btn.innerHTML;
-    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:8px;animation:spin 1s linear infinite;"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Calculating...';
-    btn.disabled = true;
-    
+    const btn = document.querySelector('#sp-form button[type=submit]');
+    btn.disabled=true; btn.textContent='Calculating…';
+    document.getElementById('sp-results').style.display='none';
+    document.getElementById('sp-error').style.display='none';
     try {
-        const resp = await fetch('/api/speaker-placement', {
-            method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({
-                length: parseFloat(document.getElementById('sp-length').value),
-                width: parseFloat(document.getElementById('sp-width').value),
-                height: parseFloat(document.getElementById('sp-height').value),
-                unit: document.getElementById('sp-unit').value,
-                speaker_type: document.getElementById('sp-type').value,
-            })
+        const body = {
+            length: parseFloat(document.getElementById('sp-length').value),
+            width:  parseFloat(document.getElementById('sp-width').value),
+            height: parseFloat(document.getElementById('sp-height').value),
+            unit: document.getElementById('sp-unit').value,
+            speaker_type: document.getElementById('sp-type').value,
+        };
+        const res = await fetch('/api/speaker-placement', {
+            method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
         });
-        const data = await resp.json();
-        if (!data.success) { alert('Error: ' + data.error); return; }
-        
-        document.getElementById('sp-results').style.display = '';
-        // API returns: data.placement = full report, data.placement.placement = coords,
-        // data.placement.room_dimensions = room size
-        const report = data.placement;
-        const placement = report.placement;
-        const room = report.room_dimensions;
-        drawRoomLayout(placement, room);
-        displayMetrics(placement);
-        displayWarnings(placement, report.common_mistakes || []);
-        
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'API error');
+        allOptions=data.options; allRoom=data.room;
+        customPositions = {};
+        renderPills();
+        renderDetail(0);
+        document.getElementById('sp-results').style.display='block';
+        document.getElementById('sp-results').scrollIntoView({behavior:'smooth',block:'start'});
     } catch(err) {
-        console.error(err);
-        alert('Error calculating placement');
+        const el=document.getElementById('sp-error');
+        el.textContent='Error: '+err.message; el.style.display='block';
     } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        btn.disabled=false; btn.textContent='Calculate 3 Placement Options';
     }
 }
 
-function drawRoomLayout(placement, room) {
-    const canvas = document.getElementById('room-canvas');
-    const ctx = canvas.getContext('2d');
-    const width = canvas.width;
-    const height = canvas.height;
-    
-    ctx.clearRect(0, 0, width, height);
-    
-    // Calculate scaling
-    const padding = 80;
-    const roomWidth = room.width || room.length;
-    const roomLength = room.length || room.width;
-    const scaleX = (width - 2 * padding) / roomLength;
-    const scaleY = (height - 2 * padding - 40) / roomWidth;
-    const scale = Math.min(scaleX, scaleY);
-    
-    const offsetX = (width - roomLength * scale) / 2;
-    const offsetY = (height - 40 - roomWidth * scale) / 2;
-    
-    function toCanvasX(x) { return offsetX + x * scale; }
-    function toCanvasY(y) { return offsetY + y * scale; }
-    
-    // Draw grid
-    ctx.strokeStyle = '#2a2d3a';
-    ctx.lineWidth = 1;
-    const gridStep = 0.5;
-    
-    for (let x = 0; x <= roomLength; x += gridStep) {
-        ctx.beginPath();
-        ctx.moveTo(toCanvasX(x), toCanvasY(0));
-        ctx.lineTo(toCanvasX(x), toCanvasY(roomWidth));
-        ctx.stroke();
-    }
-    
-    for (let y = 0; y <= roomWidth; y += gridStep) {
-        ctx.beginPath();
-        ctx.moveTo(toCanvasX(0), toCanvasY(y));
-        ctx.lineTo(toCanvasX(roomLength), toCanvasY(y));
-        ctx.stroke();
-    }
-    
-    // Draw room outline
-    ctx.strokeStyle = '#6366f1';
-    ctx.lineWidth = 3;
-    ctx.strokeRect(toCanvasX(0), toCanvasY(0), roomLength * scale, roomWidth * scale);
-    
-    // Wall labels
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('FRONT WALL', toCanvasX(roomLength / 2), toCanvasY(0) - 10);
-    ctx.fillText('REAR WALL', toCanvasX(roomLength / 2), toCanvasY(roomWidth) + 25);
-    
-    ctx.save();
-    ctx.translate(toCanvasX(0) - 30, toCanvasY(roomWidth / 2));
-    ctx.rotate(-Math.PI / 2);
-    ctx.fillText('LEFT WALL', 0, 0);
-    ctx.restore();
-    
-    ctx.save();
-    ctx.translate(toCanvasX(roomLength) + 30, toCanvasY(roomWidth / 2));
-    ctx.rotate(Math.PI / 2);
-    ctx.fillText('RIGHT WALL', 0, 0);
-    ctx.restore();
-    
-    // Draw stereo triangle
-    const leftPos = placement.left_speaker;
-    const rightPos = placement.right_speaker;
-    const listenerPos = placement.listening_position;
-    
-    ctx.strokeStyle = '#6366f144';
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(toCanvasX(leftPos.x), toCanvasY(leftPos.y));
-    ctx.lineTo(toCanvasX(listenerPos.x), toCanvasY(listenerPos.y));
-    ctx.lineTo(toCanvasX(rightPos.x), toCanvasY(rightPos.y));
-    ctx.lineTo(toCanvasX(leftPos.x), toCanvasY(leftPos.y));
-    ctx.stroke();
-    ctx.setLineDash([]);
-    
-    // Draw speakers
-    function drawSpeaker(x, y, label, color) {
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.arc(toCanvasX(x), toCanvasY(y), 12, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(label, toCanvasX(x), toCanvasY(y) - 20);
-    }
-    
-    // Draw listener
-    function drawListener(x, y) {
-        ctx.fillStyle = '#10b981';
-        ctx.beginPath();
-        ctx.arc(toCanvasX(x), toCanvasY(y), 10, 0, 2 * Math.PI);
-        ctx.fill();
-        
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 12px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('LISTENER', toCanvasX(x), toCanvasY(y) + 25);
-    }
-    
-    drawSpeaker(leftPos.x, leftPos.y, 'L', '#ef4444');
-    drawSpeaker(rightPos.x, rightPos.y, 'R', '#3b82f6');
-    drawListener(listenerPos.x, listenerPos.y);
-    
-    // Legend
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'left';
-    const legendY = height - 15;
-    ctx.fillText('Dimensions in ' + (room.unit || 'meters'), 10, legendY);
+function renderPills() {
+    const wrap=document.getElementById('option-tabs');
+    wrap.innerHTML='';
+    allOptions.forEach((opt,i) => {
+        const pill=document.createElement('div');
+        pill.className='option-pill'+(i===0?' active':'');
+        pill.innerHTML=`
+            <div class="op-badge">${opt.badge||'OPTION '+(i+1)}</div>
+            <div class="op-name">${opt.name}</div>
+            <div class="op-tagline">${opt.tagline}</div>
+            <div style="margin-top:.55rem;font-size:.8em;">Score: <strong>${opt.score}/100</strong>
+                <div class="score-bar"><div class="score-fill" style="width:${opt.score}%"></div></div>
+            </div>`;
+        pill.onclick = () => {
+            document.querySelectorAll('.option-pill').forEach(p=>p.classList.remove('active'));
+            pill.classList.add('active');
+            customPositions = {};
+            renderDetail(i);
+        };
+        wrap.appendChild(pill);
+    });
 }
 
-function displayMetrics(placement) {
-    const metricsEl = document.getElementById('sp-metrics');
-    const metrics = [
-        { label: 'Left Speaker', value: `X: ${placement.left_speaker.x.toFixed(2)}m, Y: ${placement.left_speaker.y.toFixed(2)}m` },
-        { label: 'Right Speaker', value: `X: ${placement.right_speaker.x.toFixed(2)}m, Y: ${placement.right_speaker.y.toFixed(2)}m` },
-        { label: 'Listening Position', value: `X: ${placement.listening_position.x.toFixed(2)}m, Y: ${placement.listening_position.y.toFixed(2)}m` },
-        { label: 'Speaker Separation', value: `${Math.abs(placement.right_speaker.x - placement.left_speaker.x).toFixed(2)}m` },
-        { label: 'Distance to Listener', value: `${placement.speaker_distance ? placement.speaker_distance.toFixed(2) + 'm' : 'N/A'}` },
+function renderDetail(idx) {
+    activeIdx = idx;
+    const opt=allOptions[idx], pl=opt.placement, room=opt.room_dimensions;
+
+    document.getElementById('det-name').textContent=opt.name;
+    document.getElementById('det-tagline').textContent=opt.tagline;
+    document.getElementById('det-character').textContent=opt.acoustic_character;
+    document.getElementById('det-best-for').textContent=opt.best_for;
+    document.getElementById('det-score-badge').textContent='Score: '+opt.score+'/100';
+
+    drawRoom(pl, room);
+
+    // Metrics
+    const L=pl.left_speaker, R=pl.right_speaker, P=pl.listening_position;
+    const sep=Math.abs(R.x-L.x).toFixed(2);
+    document.getElementById('sp-metrics').innerHTML=[
+        ['Left Speaker',`y:${L.y.toFixed(2)}${room.unit} · x:${L.x.toFixed(2)}${room.unit}`],
+        ['Right Speaker',`y:${R.y.toFixed(2)}${room.unit} · x:${(room.width-R.x).toFixed(2)}${room.unit} from right`],
+        ['Listening Position',`${P.y.toFixed(2)}${room.unit} from front wall`],
+        ['Speaker Separation',`${sep}${room.unit}`],
+        ['Distance to Speaker',`${pl.speaker_distance}${room.unit}`],
+        ['Stereo Angle',`${pl.speaker_angle}°`],
+        ['Toe-In',`${pl.toe_in_angle}°`],
+        ['Listener Depth',`${opt.mode_analysis.listener_depth_pct}% of room length`],
+    ].map(([k,v])=>`<div class="metric-box"><div class="metric-label">${k}</div><div class="metric-value">${v}</div></div>`).join('');
+
+    // Mode bars
+    const ma=opt.mode_analysis;
+    document.getElementById('mode-summary').textContent=ma.summary;
+    const allM=[
+        ...ma.length_modes.map(m=>({...m,dim:'Length'})),
+        ...ma.width_modes.map(m=>({...m,dim:'Width'})),
+        ...ma.height_modes.map(m=>({...m,dim:'Height'})),
     ];
-    
-    if (placement.speaker_angle) {
-        metrics.push({ label: 'Stereo Angle', value: `${placement.speaker_angle.toFixed(1)}°` });
-    }
-    if (placement.toe_in_angle) {
-        metrics.push({ label: 'Toe-In', value: `${placement.toe_in_angle.toFixed(1)}°` });
-    }
-    
-    metricsEl.innerHTML = metrics.map(m => 
-        `<div style="background:#2a2d3a;padding:1rem;border-radius:6px;">
-            <div style="color:#9ca3af;font-size:0.875rem;margin-bottom:0.25rem;">${m.label}</div>
-            <div style="color:#ffffff;font-weight:600;">${m.value}</div>
-        </div>`
-    ).join('');
+    document.getElementById('mode-bars').innerHTML=allM.map(m=>{
+        const p=m.response_pct;
+        const color=(p<20||p>70)?'#dc2626':p>55?'#d97706':'#16a34a';
+        const tag=p<20?'NULL':p>70?'PEAK':'OK';
+        return `<div class="mode-row"><div class="mode-label"><span>${m.dim} f${m.n} — ${m.freq} Hz</span><span style="color:${color};font-weight:700;">${p}% ${tag}</span></div><div class="mode-bar-bg"><div class="mode-bar-fill" style="width:${p}%;background:${color};"></div></div></div>`;
+    }).join('');
+
+    // Pros/Cons
+    document.getElementById('pros-list').innerHTML=opt.pros.map(p=>`<li>${p}</li>`).join('');
+    document.getElementById('cons-list').innerHTML=opt.cons.map(c=>`<li>${c}</li>`).join('');
+
+    // SBIR
+    const sbir=opt.sbir_issues||[];
+    document.getElementById('sp-warnings').innerHTML=sbir.length===0
+        ?'<p style="color:var(--accent);margin:0;">✓ No significant SBIR issues.</p>'
+        :sbir.map(s=>{
+            const col={critical:'#dc2626',moderate:'#d97706',minor:'#16a34a'}[s.severity]||'#7a9488';
+            return `<div class="alert" style="background:${col}10;border-left:3px solid ${col};font-size:.82em;">${s.description}</div>`;
+        }).join('');
+
+    // Setup
+    document.getElementById('setup-steps').innerHTML=(opt.setup_instructions||[]).map(s=>`<li>${s}</li>`).join('');
+
+    // Hide drag alerts initially
+    document.getElementById('drag-alerts-card').style.display='none';
 }
 
-function displayWarnings(placement, commonMistakes) {
-    const warningsEl = document.getElementById('sp-warnings');
-    let html = '';
-    
-    // Notes from placement calculation (SBIR info etc.)
-    const notes = placement.notes || [];
-    if (notes.length > 0) {
-        html += '<div style="background:#ef444420;border-left:4px solid #ef4444;padding:1rem;border-radius:6px;margin-bottom:0.75rem;"><strong style="color:#ef4444;">⚠ Placement Notes:</strong><ul style="margin:0.5rem 0 0 1.25rem;color:#d1d5db;">' +
-            notes.map(n => `<li style="margin-bottom:0.25rem;">${n}</li>`).join('') +
-            '</ul></div>';
+/* ── Canvas drawing ─────────────────────────────────────────── */
+const canvas = document.getElementById('room-canvas');
+const ctx = canvas.getContext('2d');
+let canvasPad=50, canvasRoom={}, canvasPlacement={};
+
+function toCanvasX(x) { return canvasPad + (x/canvasRoom.width)*(canvas.width-canvasPad*2); }
+function toCanvasY(y) { return canvasPad + (y/canvasRoom.length)*(canvas.height-canvasPad*2); }
+function fromCanvasX(cx) { return ((cx-canvasPad)/(canvas.width-canvasPad*2))*canvasRoom.width; }
+function fromCanvasY(cy) { return ((cy-canvasPad)/(canvas.height-canvasPad*2))*canvasRoom.length; }
+
+function drawRoom(pl, room) {
+    canvasRoom = room; canvasPlacement = pl;
+    const W=canvas.width, H=canvas.height, pad=canvasPad;
+    const cW=W-pad*2, cH=H-pad*2;
+    ctx.clearRect(0,0,W,H);
+
+    // BG
+    ctx.fillStyle='#0c1f17'; ctx.fillRect(0,0,W,H);
+
+    // Grid
+    ctx.strokeStyle='#1a3328'; ctx.lineWidth=1;
+    for(let i=1;i<5;i++){
+        const gx=pad+cW*i/5, gy=pad+cH*i/5;
+        ctx.beginPath();ctx.moveTo(gx,pad);ctx.lineTo(gx,pad+cH);ctx.stroke();
+        ctx.beginPath();ctx.moveTo(pad,gy);ctx.lineTo(pad+cW,gy);ctx.stroke();
     }
-    
-    // Common mistakes
-    if (commonMistakes && commonMistakes.length > 0) {
-        html += '<div style="background:#f59e0b20;border-left:4px solid #f59e0b;padding:1rem;border-radius:6px;"><strong style="color:#f59e0b;">💡 Common Mistakes to Avoid:</strong><ul style="margin:0.5rem 0 0 1.25rem;color:#d1d5db;">' +
-            commonMistakes.map(m => `<li style="margin-bottom:0.25rem;">${m}</li>`).join('') +
-            '</ul></div>';
+
+    // Room outline
+    ctx.strokeStyle='#22c55e'; ctx.lineWidth=2;
+    ctx.strokeRect(pad,pad,cW,cH);
+
+    // Wall labels
+    ctx.fillStyle='#7a9488'; ctx.font='bold 9px Inter,sans-serif'; ctx.textAlign='center';
+    ctx.fillText('FRONT WALL (speakers)',W/2,pad-10);
+    ctx.fillText('REAR WALL',W/2,pad+cH+16);
+    ctx.save();ctx.translate(11,H/2);ctx.rotate(-Math.PI/2);ctx.fillText('LEFT',0,0);ctx.restore();
+    ctx.save();ctx.translate(W-9,H/2);ctx.rotate(Math.PI/2);ctx.fillText('RIGHT',0,0);ctx.restore();
+
+    // Get positions (maybe custom)
+    const L = customPositions.left || pl.left_speaker;
+    const R = customPositions.right || pl.right_speaker;
+    const P = pl.listening_position;
+
+    // Sub position
+    const sub = customPositions.sub || (pl.subwoofer_options ? pl.subwoofer_options[0] : null);
+
+    // Stereo triangle
+    ctx.strokeStyle='rgba(22,163,74,.35)'; ctx.lineWidth=1.5; ctx.setLineDash([5,4]);
+    [[L,R],[L,P],[R,P]].forEach(([a,b])=>{
+        ctx.beginPath();ctx.moveTo(toCanvasX(a.x),toCanvasY(a.y));ctx.lineTo(toCanvasX(b.x),toCanvasY(b.y));ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    // Depth labels
+    ctx.fillStyle='#4a6355';ctx.font='9px Inter,sans-serif';ctx.textAlign='right';ctx.textBaseline='middle';
+    ctx.setLineDash([2,3]);ctx.strokeStyle='#2d4a3a';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad-2,toCanvasY(L.y));ctx.lineTo(pad,toCanvasY(L.y));ctx.stroke();
+    ctx.fillText(L.y.toFixed(2)+room.unit,pad-4,toCanvasY(L.y));
+    ctx.beginPath();ctx.moveTo(pad-2,toCanvasY(P.y));ctx.lineTo(pad,toCanvasY(P.y));ctx.stroke();
+    ctx.fillText(P.y.toFixed(2)+room.unit,pad-4,toCanvasY(P.y));
+    ctx.setLineDash([]);
+
+    function drawCircle(pos, label, color, radius) {
+        const cx=toCanvasX(pos.x), cy=toCanvasY(pos.y);
+        ctx.beginPath();ctx.arc(cx,cy,radius,0,Math.PI*2);
+        ctx.fillStyle=color;ctx.fill();
+        ctx.strokeStyle='rgba(255,255,255,.3)';ctx.lineWidth=1;ctx.stroke();
+        ctx.fillStyle='#fff';ctx.font='bold 11px Inter,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(label,cx,cy);
     }
-    
-    if (!html) {
-        html = '<div style="background:#10b98120;border-left:4px solid #10b981;padding:1rem;border-radius:6px;color:#10b981;"><strong>✓ Placement looks good!</strong></div>';
+
+    // Speakers
+    drawCircle(L,'L','#dc2626',11);
+    drawCircle(R,'R','#2563eb',11);
+
+    // Listener
+    const lcx=toCanvasX(P.x), lcy=toCanvasY(P.y);
+    const g=ctx.createRadialGradient(lcx,lcy,4,lcx,lcy,18);
+    g.addColorStop(0,'rgba(22,163,74,.35)');g.addColorStop(1,'rgba(22,163,74,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(lcx,lcy,18,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(lcx,lcy,9,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('🎧',lcx,lcy+1);
+
+    // Sub
+    if (sub) {
+        const sp = sub.position || sub;
+        drawCircle(sp, 'S', '#d97706', 10);
+        ctx.fillStyle='#7a9488';ctx.font='8px Inter';ctx.textBaseline='top';ctx.textAlign='center';
+        ctx.fillText('SUB',toCanvasX(sp.x),toCanvasY(sp.y)+13);
     }
-    
-    warningsEl.innerHTML = html;
+}
+
+/* ── Drag & drop ────────────────────────────────────────────── */
+canvas.addEventListener('pointerdown', e => {
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const cx = (e.clientX - rect.left) * scaleX;
+    const cy = (e.clientY - rect.top) * scaleY;
+
+    const opt = allOptions[activeIdx];
+    const pl = opt.placement;
+    const L = customPositions.left || pl.left_speaker;
+    const R = customPositions.right || pl.right_speaker;
+    const sub = customPositions.sub || (opt.subwoofer_options ? opt.subwoofer_options[0] : null);
+
+    function near(pos, threshold) {
+        if (!pos) return false;
+        const p = pos.position || pos;
+        return Math.hypot(toCanvasX(p.x)-cx, toCanvasY(p.y)-cy) < threshold;
+    }
+
+    if (near(L, 16)) { dragTarget='left'; }
+    else if (near(R, 16)) { dragTarget='right'; }
+    else if (sub && near(sub, 16)) { dragTarget='sub'; }
+    else { dragTarget=null; return; }
+
+    canvas.style.cursor='grabbing';
+    canvas.setPointerCapture(e.pointerId);
+});
+
+canvas.addEventListener('pointermove', e => {
+    if (!dragTarget) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const cx = (e.clientX - rect.left) * scaleX;
+    const cy = (e.clientY - rect.top) * scaleY;
+
+    let rx = Math.max(0.1, Math.min(canvasRoom.width-0.1, fromCanvasX(cx)));
+    let ry = Math.max(0.1, Math.min(canvasRoom.length-0.1, fromCanvasY(cy)));
+
+    const z = 1.2; // ear height
+    if (dragTarget === 'left')  customPositions.left  = {x:rx, y:ry, z:z};
+    else if (dragTarget === 'right') customPositions.right = {x:rx, y:ry, z:z};
+    else if (dragTarget === 'sub')   customPositions.sub   = {position:{x:rx, y:ry, z:0}};
+
+    drawRoom(allOptions[activeIdx].placement, canvasRoom);
+    updateDragAlerts();
+});
+
+canvas.addEventListener('pointerup', () => {
+    dragTarget = null;
+    canvas.style.cursor = 'grab';
+});
+
+function updateDragAlerts() {
+    const opt = allOptions[activeIdx];
+    const pl = opt.placement;
+    const L = customPositions.left || pl.left_speaker;
+    const R = customPositions.right || pl.right_speaker;
+    const P = pl.listening_position;
+    const c = 344; // m/s
+    const alerts = [];
+
+    // Symmetry check
+    const dL = Math.abs(L.x - P.x);
+    const dR = Math.abs(R.x - P.x);
+    if (Math.abs(dL - dR) > 0.15) {
+        alerts.push({sev:'danger', msg:`Asymmetric! Left is ${dL.toFixed(2)}m from center, Right is ${dR.toFixed(2)}m. Stereo image will shift.`});
+    }
+
+    // SBIR for each speaker
+    [['Left', L], ['Right', R]].forEach(([name, sp]) => {
+        const dists = {
+            'front wall': sp.y,
+            'left wall': sp.x,
+            'right wall': canvasRoom.width - sp.x,
+        };
+        Object.entries(dists).forEach(([wall, d]) => {
+            if (d > 0 && d < 3) {
+                const f = c / (4 * d);
+                if (f > 40 && f < 300) {
+                    const sev = f < 100 ? 'danger' : f < 200 ? 'warning' : 'success';
+                    alerts.push({sev, msg:`${name}: SBIR dip at ${f.toFixed(0)} Hz from ${wall} (${d.toFixed(2)}m)`});
+                }
+            }
+        });
+    });
+
+    // Distance mismatch
+    const distL = Math.sqrt((L.x-P.x)**2 + (L.y-P.y)**2);
+    const distR = Math.sqrt((R.x-P.x)**2 + (R.y-P.y)**2);
+    if (Math.abs(distL - distR) > 0.1) {
+        alerts.push({sev:'warning', msg:`Distance mismatch: L=${distL.toFixed(2)}m, R=${distR.toFixed(2)}m. Should be equal.`});
+    }
+
+    // Stereo angle
+    const halfSpread = Math.abs(R.x - L.x) / 2;
+    const depth = P.y - (L.y + R.y) / 2;
+    if (depth > 0) {
+        const angle = Math.atan(halfSpread / depth) * 360 / Math.PI;
+        if (angle < 50) alerts.push({sev:'warning', msg:`Stereo angle ~${angle.toFixed(0)}° is too narrow. Widen speaker spread.`});
+        if (angle > 72) alerts.push({sev:'warning', msg:`Stereo angle ~${angle.toFixed(0)}° is too wide. Phantom center may collapse.`});
+    }
+
+    // Sub corner check
+    if (customPositions.sub) {
+        const sp = customPositions.sub.position || customPositions.sub;
+        const nearCorner = (sp.x < 0.3 || sp.x > canvasRoom.width - 0.3) && (sp.y < 0.3 || sp.y > canvasRoom.length - 0.3);
+        if (nearCorner) alerts.push({sev:'warning', msg:'Sub in corner: maximum output but will excite all modes. Heavy EQ needed.'});
+    }
+
+    const card = document.getElementById('drag-alerts-card');
+    const div = document.getElementById('drag-alerts');
+    if (alerts.length === 0) {
+        card.style.display = 'none';
+    } else {
+        card.style.display = '';
+        div.innerHTML = alerts.map(a =>
+            `<div class="alert alert-${a.sev}" style="font-size:.82em;margin-bottom:.4rem;">${a.msg}</div>`
+        ).join('');
+    }
 }
 </script>
-
-<style>
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-</style>
 {% endblock %}

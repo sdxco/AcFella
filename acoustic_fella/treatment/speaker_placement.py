@@ -366,6 +366,242 @@ class SpeakerPlacementOptimizer:
             ]
         }
 
+    # ------------------------------------------------------------------
+    # Three-option placement system
+    # ------------------------------------------------------------------
+
+    def _mode_response_at(self, y_pos: float) -> List[Dict]:
+        """Calculate room mode pressure response at a given depth."""
+        c = 344 if self.use_metric else 1130
+        modes = []
+        for dim_label, dim_len in [("Length", self.length), ("Width", self.width), ("Height", self.height)]:
+            for n in range(1, 5):
+                freq = round(n * c / (2 * dim_len), 1)
+                if freq > 500:
+                    continue
+                # Standing wave: pressure proportional to cos(n*pi*pos/L)
+                if dim_label == "Length":
+                    pressure = abs(np.cos(n * np.pi * y_pos / dim_len))
+                elif dim_label == "Width":
+                    pressure = abs(np.cos(n * np.pi * (self.width / 2) / dim_len))
+                else:
+                    pressure = abs(np.cos(n * np.pi * self.ear_height / dim_len))
+                pct = round(pressure * 100)
+                modes.append({"n": n, "freq": freq, "response_pct": pct})
+        return modes
+
+    def _sbir_issues(self, speaker: Position3D) -> List[Dict]:
+        """Return SBIR issues for a speaker position."""
+        c = 344 if self.use_metric else 1130
+        issues = []
+        boundaries = {
+            "front wall": speaker.y,
+            "left wall": speaker.x,
+            "right wall": self.width - speaker.x,
+            "floor": speaker.z,
+            "ceiling": self.height - speaker.z,
+        }
+        for wall, dist in boundaries.items():
+            if dist > 0:
+                f = c / (4 * dist)
+                if 40 < f < 300:
+                    sev = "critical" if f < 100 else "moderate" if f < 200 else "minor"
+                    issues.append({
+                        "severity": sev,
+                        "description": f"SBIR dip at {f:.0f} Hz from {wall} ({dist:.2f}{self.unit})"
+                    })
+        return issues
+
+    def _score_placement(self, listener_y: float, speaker_y: float,
+                         speaker_spread: float) -> int:
+        """Score a placement option 0-100."""
+        score = 50
+        # Reward 38% zone ±5%
+        ratio = listener_y / self.length
+        ideal = 0.38
+        deviation = abs(ratio - ideal)
+        if deviation < 0.03:
+            score += 15
+        elif deviation < 0.08:
+            score += 8
+        else:
+            score -= int(deviation * 40)
+
+        # Penalise null points
+        for null in [0.25, 0.33, 0.5, 0.67, 0.75]:
+            if abs(ratio - null) < 0.03:
+                score -= 12
+
+        # SBIR penalty
+        c = 344 if self.use_metric else 1130
+        left = Position3D(self.width / 2 - speaker_spread / 2, speaker_y, self.ear_height)
+        for issue in self._sbir_issues(left):
+            score -= 5 if issue["severity"] == "minor" else 8 if issue["severity"] == "moderate" else 12
+
+        # Stereo angle bonus (60° ideal)
+        depth = listener_y - speaker_y
+        if depth > 0:
+            angle = 2 * np.degrees(np.arctan((speaker_spread / 2) / depth))
+            if 55 <= angle <= 65:
+                score += 10
+            elif 50 <= angle <= 70:
+                score += 5
+            else:
+                score -= 5
+
+        return max(10, min(100, score))
+
+    def generate_three_options(self, speaker_type: str = "nearfield") -> List[Dict]:
+        """
+        Generate three placement options with different strategies.
+
+        Option A — Standard 38% rule (balanced).
+        Option B — Near-field optimised 28% (closer to speakers).
+        Option C — Deep 43% (more room sound).
+        """
+        configs = [
+            {
+                "name": "Standard (38% Rule)",
+                "badge": "RECOMMENDED",
+                "listener_pct": 0.38,
+                "tagline": "Balanced imaging & bass — the industry standard",
+                "best_for": "Mixing, mastering, critical listening",
+                "character_fn": lambda sc: f"Balanced bass response with good imaging. Score {sc}/100. "
+                    "The 38% position avoids major length-mode nulls while keeping "
+                    "the listener close enough for a strong direct-to-reverberant ratio."
+            },
+            {
+                "name": "Near-Field Focus (28%)",
+                "badge": "NEAR-FIELD",
+                "listener_pct": 0.28,
+                "tagline": "Closer position, less room influence",
+                "best_for": "Small rooms, nearfield monitoring, tracking",
+                "character_fn": lambda sc: f"Direct-sound dominant with reduced room influence. Score {sc}/100. "
+                    "Brings the listener forward for maximum nearfield clarity. "
+                    "Bass may be less even but early reflections are better controlled."
+            },
+            {
+                "name": "Deep Position (43%)",
+                "badge": "DEEP",
+                "listener_pct": 0.43,
+                "tagline": "Fuller bass, wider sweet spot",
+                "best_for": "Larger rooms, midfield monitors, music enjoyment",
+                "character_fn": lambda sc: f"Fuller low-end with wider sweet spot. Score {sc}/100. "
+                    "Sitting deeper gives more room energy and a sense of envelopment, "
+                    "but early reflections may need more treatment."
+            },
+        ]
+
+        options = []
+        for cfg in configs:
+            listener_y = self.length * cfg["listener_pct"]
+            speaker_y = self._calculate_speaker_front_distance(speaker_type)
+            speaker_distance = self._calculate_speaker_distance(speaker_type)
+
+            # Spread
+            spread = speaker_distance
+            max_spread = self.width * 0.8
+            spread = min(spread, max_spread)
+            min_side = 0.6 if self.use_metric else 2.0
+
+            half = spread / 2
+            center_x = self.width / 2
+            left_x = max(min_side, center_x - half)
+            right_x = min(self.width - min_side, center_x + half)
+            spread = right_x - left_x
+
+            left_sp = Position3D(round(left_x, 3), round(speaker_y, 3), self.ear_height)
+            right_sp = Position3D(round(right_x, 3), round(speaker_y, 3), self.ear_height)
+            listen = Position3D(round(center_x, 3), round(listener_y, 3), self.ear_height)
+
+            actual_dist = listen.distance_to(left_sp)
+            depth = listener_y - speaker_y
+            angle = 2 * np.degrees(np.arctan((spread / 2) / depth)) if depth > 0 else 60
+            toe_in = self._calculate_toe_in(angle, speaker_type)
+
+            score = self._score_placement(listener_y, speaker_y, spread)
+
+            # Mode analysis
+            length_modes = [m for m in self._mode_response_at(listener_y) if m["n"] <= 4]
+            # Split by dimension (crude but works: first 4 are length, next 4 width, next 4 height)
+            all_modes = self._mode_response_at(listener_y)
+            l_modes = [m for i, m in enumerate(all_modes) if i < 4]
+            w_modes = [m for i, m in enumerate(all_modes) if 4 <= i < 8]
+            h_modes = [m for i, m in enumerate(all_modes) if 8 <= i < 12]
+
+            # Pros / Cons
+            pros, cons = [], []
+            ratio = listener_y / self.length
+            if abs(ratio - 0.38) < 0.04:
+                pros.append("Classic 38% position avoids major nulls")
+            if ratio < 0.32:
+                pros.append("Strong direct sound; minimal room influence")
+                cons.append("May lose low-frequency energy")
+            if ratio > 0.40:
+                pros.append("Fuller low end")
+                cons.append("More room influence — reflections need treatment")
+            if 55 <= angle <= 65:
+                pros.append(f"Near-ideal stereo angle ({angle:.0f}°)")
+            elif angle < 55:
+                cons.append(f"Narrow stereo angle ({angle:.0f}°)")
+            else:
+                cons.append(f"Wide stereo angle ({angle:.0f}°)")
+
+            sbir = self._sbir_issues(left_sp)
+            if not sbir:
+                pros.append("No significant SBIR issues")
+            else:
+                crit = [s for s in sbir if s["severity"] == "critical"]
+                if crit:
+                    cons.append(f"{len(crit)} critical SBIR reflection(s)")
+
+            sub_positions = self.calculate_subwoofer_positions(1)
+
+            options.append({
+                "name": cfg["name"],
+                "badge": cfg["badge"],
+                "tagline": cfg["tagline"],
+                "best_for": cfg["best_for"],
+                "acoustic_character": cfg["character_fn"](score),
+                "score": score,
+                "room_dimensions": {
+                    "length": self.length, "width": self.width,
+                    "height": self.height, "unit": self.unit,
+                },
+                "placement": {
+                    "left_speaker": left_sp.to_dict(),
+                    "right_speaker": right_sp.to_dict(),
+                    "listening_position": listen.to_dict(),
+                    "speaker_angle": round(angle, 1),
+                    "speaker_distance": round(actual_dist, 2),
+                    "toe_in_angle": round(toe_in, 1),
+                },
+                "subwoofer_options": sub_positions,
+                "mode_analysis": {
+                    "listener_depth_pct": round(ratio * 100, 1),
+                    "summary": f"Listener at {ratio*100:.0f}% of room length ({listener_y:.2f}{self.unit} from front wall)",
+                    "length_modes": l_modes,
+                    "width_modes": w_modes,
+                    "height_modes": h_modes,
+                },
+                "sbir_issues": sbir,
+                "pros": pros,
+                "cons": cons,
+                "setup_instructions": [
+                    f"Mark the listening position {listener_y:.2f}{self.unit} from the front wall, centered.",
+                    f"Place left speaker at ({left_sp.x:.2f}, {left_sp.y:.2f}){self.unit}.",
+                    f"Place right speaker at ({right_sp.x:.2f}, {right_sp.y:.2f}){self.unit}.",
+                    f"Toe-in speakers {toe_in:.0f}° toward the listening position.",
+                    f"Set tweeter height to {self.ear_height:.2f}{self.unit} (ear level).",
+                    "Verify equal distances from listener to each speaker.",
+                    "Run a sweep or pink noise to check response at the seat.",
+                ],
+            })
+
+        # Sort by score descending
+        options.sort(key=lambda o: o["score"], reverse=True)
+        return options
+
 
 def quick_speaker_placement(length: float, width: float, height: float,
                            use_metric: bool = True) -> Dict:
