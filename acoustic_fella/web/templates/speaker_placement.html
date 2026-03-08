@@ -2,63 +2,72 @@
 {% block title %}Speaker Placement — AcFella{% endblock %}
 {% block extra_head %}
 <style>
-/* ─── Layout ─── */
-#sp-page{display:grid;grid-template-columns:1fr 340px;gap:1.2rem;align-items:start;}
-@media(max-width:860px){ #sp-page{grid-template-columns:1fr;} }
-.sp-left{display:flex;flex-direction:column;gap:.75rem;}
+/* ─── Master Layout ─── */
+.sp-top{display:flex;gap:1rem;align-items:stretch;margin-bottom:.75rem;}
+.sp-canvas-col{flex:1;min-width:0;display:flex;flex-direction:column;}
+.sp-analysis-col{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:.5rem;max-height:calc(100vh - 160px);overflow-y:auto;scrollbar-width:thin;}
+.sp-analysis-col::-webkit-scrollbar{width:4px;}
+.sp-analysis-col::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+@media(max-width:900px){
+  .sp-top{flex-direction:column;}
+  .sp-analysis-col{width:100%;max-height:none;flex-direction:row;flex-wrap:wrap;gap:.5rem;}
+  .sp-analysis-col .sp-section{flex:1;min-width:240px;}
+}
+/* Canvas container — centers canvas if it's narrower than container */
+.canvas-wrap{position:relative;background:#0a1a13;border-radius:var(--radius-lg);overflow:hidden;display:flex;justify-content:center;align-items:center;flex:1;}
+#room-canvas{display:block;cursor:grab;}
+/* Bottom bar: depth chart + recs side by side */
+.sp-bottom{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:1rem;}
+@media(max-width:900px){ .sp-bottom{grid-template-columns:1fr;} }
 
-/* ─── Canvas ─── */
-.canvas-wrap{position:relative;background:var(--bg-dark-section);border-radius:var(--radius-lg);overflow:hidden;padding:0;}
-#room-canvas{display:block;width:100%;cursor:grab;}
+/* ─── Sections ─── */
+.sp-section{background:var(--bg-card);border:1px solid var(--border-light);border-radius:var(--radius);padding:.55rem .75rem;}
+.sp-section-title{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:.35rem;display:flex;align-items:center;gap:.3rem;}
+.sp-section-title svg{width:13px;height:13px;opacity:.45;}
 
-/* ─── Sidebar ─── */
-.sp-section{background:var(--bg-card);border:1px solid var(--border-light);border-radius:var(--radius);padding:.65rem .85rem;margin-bottom:.5rem;}
-.sp-section-title{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);margin-bottom:.4rem;display:flex;align-items:center;gap:.35rem;}
-.sp-section-title svg{width:14px;height:14px;opacity:.5;}
-
-/* Metrics row */
-.sp-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;font-size:.8rem;}
+/* Metrics */
+.sp-row{display:flex;justify-content:space-between;align-items:baseline;padding:2px 0;font-size:.78rem;}
 .sp-row .k{color:var(--text-secondary);}
 .sp-row .v{font-weight:600;font-variant-numeric:tabular-nums;color:var(--text-primary);}
 
-/* Insight badges */
-.sp-badge{display:flex;align-items:flex-start;gap:.45rem;padding:5px 8px;border-radius:6px;font-size:.78rem;line-height:1.45;margin-bottom:4px;}
-.sp-badge .dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px;}
-.sp-badge.ok{background:rgba(22,163,74,.06);}.sp-badge.ok .dot{background:var(--accent);}
-.sp-badge.warn{background:rgba(217,119,6,.06);}.sp-badge.warn .dot{background:var(--warning);}
-.sp-badge.bad{background:rgba(220,38,38,.06);}.sp-badge.bad .dot{background:var(--danger);}
-.sp-badge.info{background:rgba(59,130,246,.06);}.sp-badge.info .dot{background:#3b82f6;}
+/* Badges */
+.sp-badge{display:flex;align-items:flex-start;gap:.4rem;padding:4px 7px;border-radius:5px;font-size:.75rem;line-height:1.4;margin-bottom:3px;}
+.sp-badge .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.sp-badge.ok{background:rgba(22,163,74,.05);}.sp-badge.ok .dot{background:var(--accent);}
+.sp-badge.warn{background:rgba(217,119,6,.05);}.sp-badge.warn .dot{background:var(--warning);}
+.sp-badge.bad{background:rgba(220,38,38,.05);}.sp-badge.bad .dot{background:var(--danger);}
+.sp-badge.info{background:rgba(59,130,246,.05);}.sp-badge.info .dot{background:#3b82f6;}
 
 /* Recommendation cards */
-.rec-card{border:1px solid var(--border-light);border-radius:var(--radius);padding:.6rem .8rem;margin-bottom:.45rem;background:var(--bg-card);transition:border-color .15s;}
+.rec-card{border:1px solid var(--border-light);border-radius:var(--radius);padding:.5rem .7rem;margin-bottom:.4rem;background:var(--bg-card);transition:border-color .15s;}
 .rec-card:hover{border-color:var(--accent-light);}
-.rec-title{font-size:.82rem;font-weight:700;color:var(--text-primary);margin-bottom:.2rem;display:flex;align-items:center;gap:.4rem;}
-.rec-title .rec-type{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.rec-detail{font-size:.76rem;color:var(--text-secondary);line-height:1.55;}
-.rec-metric{font-size:.72rem;font-weight:700;color:var(--accent-dark);margin-top:.2rem;}
+.rec-title{font-size:.78rem;font-weight:700;color:var(--text-primary);margin-bottom:.15rem;display:flex;align-items:center;gap:.35rem;}
+.rec-title .rec-type{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.rec-detail{font-size:.72rem;color:var(--text-secondary);line-height:1.5;}
+.rec-metric{font-size:.7rem;font-weight:700;color:var(--accent-dark);margin-top:.15rem;}
 
 /* Mode bars */
-.mode-row{display:flex;align-items:center;gap:6px;font-size:.74rem;margin-bottom:3px;}
-.mode-label{width:95px;color:var(--text-muted);font-variant-numeric:tabular-nums;}
-.mode-bar{flex:1;height:7px;background:var(--bg-input);border-radius:3px;overflow:hidden;}
+.mode-row{display:flex;align-items:center;gap:5px;font-size:.72rem;margin-bottom:2px;}
+.mode-label{width:88px;color:var(--text-muted);font-variant-numeric:tabular-nums;}
+.mode-bar{flex:1;height:6px;background:var(--bg-input);border-radius:3px;overflow:hidden;}
 .mode-bar-fill{height:100%;border-radius:3px;transition:width .2s;}
-.mode-val{width:38px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;}
-.mode-tag{font-size:.6rem;font-weight:700;width:30px;}
+.mode-val{width:34px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums;}
+.mode-tag{font-size:.58rem;font-weight:700;width:28px;}
 
 /* Depth chart */
-.depth-wrap{height:100px;margin-top:.3rem;}
+.depth-wrap{height:90px;}
 </style>
 {% endblock %}
 
 {% block content %}
-<main class="container" style="padding-top:1rem;padding-bottom:2rem;">
-    <div style="margin-bottom:.6rem;">
-        <h1 style="font-size:1.3rem;font-weight:800;margin:0;">Nearfield Monitor Placement</h1>
-        <p style="font-size:.78rem;color:var(--text-muted);margin:.15rem 0 0;">Drag monitors, listener, and sub to explore — analysis updates in real time</p>
+<main class="container" style="padding-top:.75rem;padding-bottom:1.5rem;">
+    <div style="margin-bottom:.5rem;">
+        <h1 style="font-size:1.25rem;font-weight:800;margin:0;">Nearfield Monitor Placement</h1>
+        <p style="font-size:.75rem;color:var(--text-muted);margin:.1rem 0 0;">Drag L/R monitors, listener (LP), and sub (S) to explore positions. Click depth chart bars to jump.</p>
     </div>
 
     <!-- INPUT -->
-    <form id="sp-form" onsubmit="compute(event)" style="display:flex;gap:.5rem;align-items:end;flex-wrap:wrap;margin-bottom:1rem;">
+    <form id="sp-form" onsubmit="compute(event)" style="display:flex;gap:.5rem;align-items:end;flex-wrap:wrap;margin-bottom:.75rem;">
         {% if project %}<span class="project-badge" style="font-size:.76rem;margin-right:.25rem;">{{ project.name }}</span>{% endif %}
         <div class="form-group" style="margin:0;flex:1;min-width:70px;"><label style="font-size:.7rem;">Length (front-rear)</label><input type="number" id="sp-length" step="0.01" min="1" max="30" value="{{ project.geometry.length if project and project.geometry else '4.20' }}" required></div>
         <div class="form-group" style="margin:0;flex:1;min-width:70px;"><label style="font-size:.7rem;">Width (left-right)</label><input type="number" id="sp-width" step="0.01" min="1" max="30" value="{{ project.geometry.width if project and project.geometry else '2.83' }}" required></div>
@@ -74,34 +83,15 @@
 
     <!-- RESULTS -->
     <div id="sp-results" style="display:none;">
-        <div id="sp-page">
-            <!-- LEFT COLUMN -->
-            <div class="sp-left">
-                <div class="canvas-wrap">
+        <!-- TOP: Canvas + Analysis side by side -->
+        <div class="sp-top">
+            <div class="sp-canvas-col">
+                <div class="canvas-wrap" id="canvas-wrap">
                     <canvas id="room-canvas"></canvas>
                 </div>
-                <!-- Depth chart -->
-                <div class="sp-section">
-                    <div class="sp-section-title">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15h18M9 3v18"/></svg>
-                        Acoustic Quality by Depth
-                    </div>
-                    <div class="depth-wrap"><canvas id="depth-chart"></canvas></div>
-                </div>
             </div>
-
-            <!-- RIGHT COLUMN — Sidebar -->
-            <div>
-                <!-- Recommendations -->
-                <div class="sp-section" style="border-left:3px solid var(--accent);">
-                    <div class="sp-section-title">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/></svg>
-                        Room-Specific Recommendations
-                    </div>
-                    <div id="recs-list"></div>
-                </div>
-
-                <!-- Geometry -->
+            <!-- Right: scrollable analysis panels -->
+            <div class="sp-analysis-col">
                 <div class="sp-section">
                     <div class="sp-section-title">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 22 22 22"/></svg>
@@ -109,8 +99,6 @@
                     </div>
                     <div id="geo-metrics"></div>
                 </div>
-
-                <!-- Live Insights -->
                 <div class="sp-section">
                     <div class="sp-section-title">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
@@ -118,8 +106,6 @@
                     </div>
                     <div id="insights"></div>
                 </div>
-
-                <!-- SBIR -->
                 <div class="sp-section">
                     <div class="sp-section-title">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3-9 4 18 3-9h4"/></svg>
@@ -127,8 +113,6 @@
                     </div>
                     <div id="sbir-list"></div>
                 </div>
-
-                <!-- Mode Response -->
                 <div class="sp-section">
                     <div class="sp-section-title">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12h16"/><path d="M12 4v16"/></svg>
@@ -138,6 +122,24 @@
                 </div>
             </div>
         </div>
+
+        <!-- BOTTOM: Depth chart + Recommendations side by side -->
+        <div class="sp-bottom">
+            <div class="sp-section">
+                <div class="sp-section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 15h18M9 3v18"/></svg>
+                    Acoustic Quality by Depth <span style="font-weight:400;opacity:.6;margin-left:4px;">(click to select)</span>
+                </div>
+                <div class="depth-wrap"><canvas id="depth-chart"></canvas></div>
+            </div>
+            <div class="sp-section" style="border-left:3px solid var(--accent);">
+                <div class="sp-section-title">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18h6M12 2a7 7 0 0 1 7 7c0 2.38-1.19 4.47-3 5.74V17a1 1 0 0 1-1 1h-6a1 1 0 0 1-1-1v-2.26C6.19 13.47 5 11.38 5 9a7 7 0 0 1 7-7z"/></svg>
+                    Room Recommendations
+                </div>
+                <div id="recs-list" style="max-height:200px;overflow-y:auto;scrollbar-width:thin;"></div>
+            </div>
+        </div>
     </div>
 </main>
 {% endblock %}
@@ -145,17 +147,19 @@
 {% block extra_js %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3/dist/chart.min.js"></script>
 <script>
-/* ─── State ─── */
-var roomData=null, candidates=[], subOpts=[], recommendations=[];
+/* ═══════════════════════════════════════════════════════
+   STATE
+   ═══════════════════════════════════════════════════════ */
+var roomData=null, candidates=[], sortedCandidates=[], subOpts=[], recommendations=[];
 var pos={L:{},R:{},LP:{},S:{}};
-var speakerY=0;
-var C=344;
-var depthChart=null;
+var speakerY=0, C=344, depthChart=null;
 var canvas=document.getElementById('room-canvas');
 var ctx=canvas.getContext('2d');
-var PAD=52;
+var PAD=48;
 
-/* ─── API ─── */
+/* ═══════════════════════════════════════════════════════
+   API
+   ═══════════════════════════════════════════════════════ */
 function compute(e){
     e.preventDefault();
     var body={length:+document.getElementById('sp-length').value,
@@ -167,11 +171,7 @@ function compute(e){
         roomData=d.room; candidates=d.candidates; subOpts=d.sub_options;
         recommendations=d.recommendations||[];
         speakerY=d.speaker_y;
-        var b=d.best;
-        pos.L={x:b.placement.left_speaker.x, y:b.placement.left_speaker.y};
-        pos.R={x:b.placement.right_speaker.x, y:b.placement.right_speaker.y};
-        pos.LP={x:b.placement.listening_position.x, y:b.placement.listening_position.y};
-        pos.S=subOpts.length?{x:subOpts[0].x, y:subOpts[0].y}:{x:roomData.width/2,y:0.1};
+        applyCandidate(d.best);
         document.getElementById('sp-results').style.display='';
         sizeCanvas();
         drawAll();
@@ -180,25 +180,45 @@ function compute(e){
     });
 }
 
-/* ─── Canvas sizing — match room aspect ratio ─── */
+/* Apply a candidate's geometry to current positions */
+function applyCandidate(c){
+    pos.L={x:c.placement.left_speaker.x, y:c.placement.left_speaker.y};
+    pos.R={x:c.placement.right_speaker.x, y:c.placement.right_speaker.y};
+    pos.LP={x:c.placement.listening_position.x, y:c.placement.listening_position.y};
+    if(!pos.S||!pos.S.x) pos.S=subOpts.length?{x:subOpts[0].x,y:subOpts[0].y}:{x:roomData.width/2,y:0.1};
+}
+
+/* ═══════════════════════════════════════════════════════
+   CANVAS SIZING — proper aspect ratio, fills container
+   ═══════════════════════════════════════════════════════ */
 function sizeCanvas(){
     if(!roomData) return;
-    var maxW=canvas.parentElement.clientWidth;
-    var aspect=roomData.length/roomData.width;  /* height/width of drawing area */
-    var drawW=maxW;
-    var drawH=Math.round(drawW*aspect);
-    /* Clamp height to reasonable range */
-    var minH=320, maxH=700;
-    if(drawH>maxH){drawH=maxH;drawW=Math.round(drawH/aspect);}
-    if(drawH<minH){drawH=minH;}
-    /* Set physical pixel size (2x for retina) */
+    var wrap=document.getElementById('canvas-wrap');
+    var availW=wrap.clientWidth;
+    var availH=wrap.clientHeight||500;
+    var roomAspect=roomData.length/roomData.width;
+
+    /* Fit the room rectangle (with padding) inside the available space */
+    var drawW, drawH;
+    if(availW * roomAspect <= availH){
+        /* Width-limited */
+        drawW=availW;
+        drawH=Math.round(availW * roomAspect);
+    } else {
+        /* Height-limited */
+        drawH=availH;
+        drawW=Math.round(availH / roomAspect);
+    }
+    /* Minimum dims */
+    drawW=Math.max(drawW, 280);
+    drawH=Math.max(drawH, 240);
+
     var dpr=window.devicePixelRatio||1;
     canvas.width=drawW*dpr;
     canvas.height=drawH*dpr;
     canvas.style.width=drawW+'px';
     canvas.style.height=drawH+'px';
     ctx.setTransform(dpr,0,0,dpr,0,0);
-    /* Store logical dims for coordinate transforms */
     canvas._logW=drawW;
     canvas._logH=drawH;
 }
@@ -208,15 +228,17 @@ function tY(y){return PAD+(y/roomData.length)*(canvas._logH-PAD*2);}
 function fX(cx){return Math.max(0.05,Math.min(roomData.width-0.05,((cx-PAD)/(canvas._logW-PAD*2))*roomData.width));}
 function fY(cy){return Math.max(0.05,Math.min(roomData.length-0.05,((cy-PAD)/(canvas._logH-PAD*2))*roomData.length));}
 
-/* ─── Draw ─── */
+/* ═══════════════════════════════════════════════════════
+   DRAW
+   ═══════════════════════════════════════════════════════ */
 function drawAll(){
     if(!roomData)return;
     var W=canvas._logW, H=canvas._logH;
     var rW=roomData.width, rL=roomData.length, rH=roomData.height;
-    ctx.clearRect(0,0,W,H);
 
-    /* Background */
-    ctx.fillStyle='#0a1a13';ctx.fillRect(0,0,W,H);
+    /* Clear entire canvas — NO black areas */
+    ctx.fillStyle='#0a1a13';
+    ctx.fillRect(0,0,W,H);
 
     /* Grid */
     var step=Math.max(rL,rW)>6?1:0.5;
@@ -227,9 +249,9 @@ function drawAll(){
     /* Ruler labels */
     ctx.fillStyle='#3d5c4a';ctx.font='9px Inter,system-ui,sans-serif';
     ctx.textAlign='center';ctx.textBaseline='top';
-    for(var x=0;x<=rW+.001;x+=step) ctx.fillText(x.toFixed(1)+'m',tX(x),tY(rL)+6);
+    for(var x=0;x<=rW+.001;x+=step) ctx.fillText(x.toFixed(1)+'m',tX(x),tY(rL)+5);
     ctx.textAlign='right';ctx.textBaseline='middle';
-    for(var y=0;y<=rL+.001;y+=step) ctx.fillText(y.toFixed(1)+'m',PAD-6,tY(y));
+    for(var y=0;y<=rL+.001;y+=step) ctx.fillText(y.toFixed(1)+'m',PAD-5,tY(y));
 
     /* Room outline */
     ctx.strokeStyle='#22c55e';ctx.lineWidth=2;
@@ -237,77 +259,74 @@ function drawAll(){
 
     /* Wall labels */
     ctx.fillStyle='#5a8a6e';ctx.font='bold 10px Inter,system-ui,sans-serif';ctx.textAlign='center';
-    ctx.textBaseline='bottom';ctx.fillText('FRONT WALL',W/2,PAD-10);
-    ctx.textBaseline='top';ctx.fillText('REAR WALL',W/2,tY(rL)+24);
-    ctx.save();ctx.translate(12,H/2);ctx.rotate(-Math.PI/2);ctx.textBaseline='bottom';ctx.fillText('LEFT',0,0);ctx.restore();
-    ctx.save();ctx.translate(W-10,H/2);ctx.rotate(Math.PI/2);ctx.textBaseline='bottom';ctx.fillText('RIGHT',0,0);ctx.restore();
+    ctx.textBaseline='bottom';ctx.fillText('FRONT WALL',W/2,PAD-8);
+    ctx.textBaseline='top';ctx.fillText('REAR WALL',W/2,tY(rL)+22);
+    ctx.save();ctx.translate(11,H/2);ctx.rotate(-Math.PI/2);ctx.textBaseline='bottom';ctx.fillText('LEFT',0,0);ctx.restore();
+    ctx.save();ctx.translate(W-9,H/2);ctx.rotate(Math.PI/2);ctx.textBaseline='bottom';ctx.fillText('RIGHT',0,0);ctx.restore();
 
     /* 38% reference line */
     var y38=rL*0.38;
-    ctx.strokeStyle='rgba(34,197,94,.15)';ctx.lineWidth=1;ctx.setLineDash([4,6]);
+    ctx.strokeStyle='rgba(34,197,94,.12)';ctx.lineWidth=1;ctx.setLineDash([3,5]);
     ctx.beginPath();ctx.moveTo(PAD,tY(y38));ctx.lineTo(tX(rW),tY(y38));ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle='rgba(34,197,94,.3)';ctx.font='8px Inter';ctx.textAlign='left';
-    ctx.fillText('38%',tX(rW)+4,tY(y38)+3);
+    ctx.fillStyle='rgba(34,197,94,.25)';ctx.font='8px Inter';ctx.textAlign='left';
+    ctx.fillText('38%',tX(rW)+3,tY(y38)+3);
 
     /* Stereo triangle */
-    ctx.strokeStyle='rgba(22,163,74,.22)';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);
+    ctx.strokeStyle='rgba(22,163,74,.2)';ctx.lineWidth=1.5;ctx.setLineDash([5,5]);
     [[pos.L,pos.R],[pos.L,pos.LP],[pos.R,pos.LP]].forEach(function(pair){
         ctx.beginPath();ctx.moveTo(tX(pair[0].x),tY(pair[0].y));ctx.lineTo(tX(pair[1].x),tY(pair[1].y));ctx.stroke();
     });
     ctx.setLineDash([]);
 
-    /* Depth dimension lines */
-    var dimX=tX(rW)+10;
-    ctx.strokeStyle='#2d5a40';ctx.lineWidth=1;
-    ctx.beginPath();ctx.moveTo(dimX,tY(pos.L.y));ctx.lineTo(dimX,tY(pos.LP.y));ctx.stroke();
-    ctx.beginPath();ctx.moveTo(dimX-3,tY(pos.L.y));ctx.lineTo(dimX+3,tY(pos.L.y));ctx.stroke();
-    ctx.beginPath();ctx.moveTo(dimX-3,tY(pos.LP.y));ctx.lineTo(dimX+3,tY(pos.LP.y));ctx.stroke();
-    var midY=(tY(pos.L.y)+tY(pos.LP.y))/2;
-    var depth=pos.LP.y-pos.L.y;
-    ctx.fillStyle='#4a8a62';ctx.font='9px Inter';ctx.textAlign='left';ctx.textBaseline='middle';
-    ctx.fillText(depth.toFixed(2)+'m',dimX+5,midY);
-
     /* Objects */
-    drawCircle(pos.L,'L','#ef4444',12);
-    drawCircle(pos.R,'R','#3b82f6',12);
+    drawMonitor(pos.L,'L','#ef4444');
+    drawMonitor(pos.R,'R','#3b82f6');
     drawSub(pos.S);
     drawListener(pos.LP);
+
+    /* Dimension annotation */
+    var depth=pos.LP.y-pos.L.y;
+    var midScreenY=(tY(pos.L.y)+tY(pos.LP.y))/2;
+    ctx.fillStyle='#3a7555';ctx.font='8px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(depth.toFixed(2)+'m',(tX(pos.L.x)+tX(pos.LP.x))/2-18,midScreenY);
 
     updateAnalysis();
 }
 
-function drawCircle(p,label,color,r){
+function drawMonitor(p,label,color){
     var cx=tX(p.x),cy=tY(p.y);
-    ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fillStyle=color;ctx.globalAlpha=0.9;ctx.fill();ctx.globalAlpha=1;
-    ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle='#fff';ctx.font='bold 11px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.beginPath();ctx.arc(cx,cy,11,0,Math.PI*2);ctx.fillStyle=color;ctx.globalAlpha=0.85;ctx.fill();ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='bold 10px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText(label,cx,cy);
 }
 
 function drawSub(p){
-    var cx=tX(p.x),cy=tY(p.y),s=10;
+    var cx=tX(p.x),cy=tY(p.y),hw=9,hh=7;
     ctx.fillStyle='#d97706';ctx.globalAlpha=0.85;
-    ctx.beginPath();ctx.moveTo(cx,cy-s);ctx.lineTo(cx+s,cy);ctx.lineTo(cx,cy+s);ctx.lineTo(cx-s,cy);ctx.closePath();ctx.fill();
-    ctx.globalAlpha=1;ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillRect(cx-hw,cy-hh,hw*2,hh*2);
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;
+    ctx.strokeRect(cx-hw,cy-hh,hw*2,hh*2);
     ctx.fillStyle='#fff';ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText('S',cx,cy);
 }
 
 function drawListener(p){
     var cx=tX(p.x),cy=tY(p.y);
-    /* Glow */
-    var g=ctx.createRadialGradient(cx,cy,4,cx,cy,20);
-    g.addColorStop(0,'rgba(22,163,74,.3)');g.addColorStop(1,'rgba(22,163,74,0)');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,20,0,Math.PI*2);ctx.fill();
-    /* Dot */
-    ctx.beginPath();ctx.arc(cx,cy,10,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill();
-    ctx.strokeStyle='rgba(255,255,255,.2)';ctx.lineWidth=1;ctx.stroke();
-    ctx.fillStyle='#fff';ctx.font='bold 9px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
+    var g=ctx.createRadialGradient(cx,cy,3,cx,cy,18);
+    g.addColorStop(0,'rgba(22,163,74,.28)');g.addColorStop(1,'rgba(22,163,74,0)');
+    ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,18,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.arc(cx,cy,9,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill();
+    ctx.strokeStyle='rgba(255,255,255,.15)';ctx.lineWidth=1;ctx.stroke();
+    ctx.fillStyle='#fff';ctx.font='bold 8px Inter';ctx.textAlign='center';ctx.textBaseline='middle';
     ctx.fillText('LP',cx,cy);
 }
 
-/* ─── Recommendations ─── */
+/* ═══════════════════════════════════════════════════════
+   RECOMMENDATIONS
+   ═══════════════════════════════════════════════════════ */
 function renderRecs(){
     var html='';
     var typeColors={position:'#22c55e',monitors:'#3b82f6',ok:'#22c55e',info:'#3b82f6',
@@ -323,7 +342,9 @@ function renderRecs(){
     document.getElementById('recs-list').innerHTML=html;
 }
 
-/* ─── Analysis sidebar ─── */
+/* ═══════════════════════════════════════════════════════
+   LIVE ANALYSIS SIDEBAR
+   ═══════════════════════════════════════════════════════ */
 function updateAnalysis(){
     if(!roomData)return;
     var rW=roomData.width, rL=roomData.length, rH=roomData.height;
@@ -337,43 +358,38 @@ function updateAnalysis(){
 
     /* Geometry */
     document.getElementById('geo-metrics').innerHTML=[
-        ['Listening depth',pos.LP.y.toFixed(2)+'m <span style="opacity:.5">('+depthPct+'%)</span>'],
-        ['Monitor spread',spread.toFixed(2)+'m'],
-        ['Distance to L',distL.toFixed(2)+'m'],
-        ['Distance to R',distR.toFixed(2)+'m'],
-        ['Stereo angle',angle.toFixed(1)+'\u00B0'],
-        ['Toe-in',toeIn.toFixed(1)+'\u00B0'],
-        ['Front wall gap',pos.L.y.toFixed(2)+'m'],
-        ['Rear wall gap',(rL-pos.LP.y).toFixed(2)+'m'],
+        ['Depth',pos.LP.y.toFixed(2)+'m <span style="opacity:.5">('+depthPct+'%)</span>'],
+        ['Spread',spread.toFixed(2)+'m'],
+        ['Dist L / R',distL.toFixed(2)+' / '+distR.toFixed(2)+'m'],
+        ['Angle / Toe-in',angle.toFixed(1)+'\u00B0 / '+toeIn.toFixed(1)+'\u00B0'],
+        ['Front / Rear gap',pos.L.y.toFixed(2)+' / '+(rL-pos.LP.y).toFixed(2)+'m'],
     ].map(function(a){return '<div class="sp-row"><span class="k">'+a[0]+'</span><span class="v">'+a[1]+'</span></div>';}).join('');
 
-    /* Live insights */
+    /* Insights */
     var ins=[];
     var asym=Math.abs(distL-distR);
-    if(asym<0.05) ins.push({c:'ok',t:'Symmetric placement'});
-    else if(asym<0.15) ins.push({c:'warn',t:'Slight asymmetry: \u0394'+asym.toFixed(2)+'m'});
-    else ins.push({c:'bad',t:'Asymmetric: L='+distL.toFixed(2)+'m R='+distR.toFixed(2)+'m'});
+    if(asym<0.05) ins.push({c:'ok',t:'Symmetric'});
+    else if(asym<0.15) ins.push({c:'warn',t:'\u0394'+asym.toFixed(2)+'m asymmetry'});
+    else ins.push({c:'bad',t:'Asymmetric: \u0394'+asym.toFixed(2)+'m'});
 
-    if(angle>=55&&angle<=65) ins.push({c:'ok',t:'Stereo angle '+angle.toFixed(0)+'\u00B0 \u2014 ideal'});
-    else if(angle>=50&&angle<=70) ins.push({c:'warn',t:'Stereo angle '+angle.toFixed(0)+'\u00B0 \u2014 acceptable'});
+    if(angle>=55&&angle<=65) ins.push({c:'ok',t:angle.toFixed(0)+'\u00B0 stereo \u2014 ideal'});
+    else if(angle>=50&&angle<=70) ins.push({c:'warn',t:angle.toFixed(0)+'\u00B0 stereo \u2014 acceptable'});
     else if(angle<50) ins.push({c:'bad',t:angle.toFixed(0)+'\u00B0 \u2014 too narrow'});
     else ins.push({c:'bad',t:angle.toFixed(0)+'\u00B0 \u2014 too wide'});
 
     var ratioDev=Math.abs(pos.LP.y/rL-0.38);
-    if(ratioDev<0.03) ins.push({c:'ok',t:'Within 38% sweet zone'});
-    else if(ratioDev<0.08) ins.push({c:'info',t:depthPct+'% \u2014 near 38% zone'});
-    else ins.push({c:'warn',t:depthPct+'% \u2014 outside 38% range'});
+    if(ratioDev<0.03) ins.push({c:'ok',t:'38% sweet zone'});
+    else if(ratioDev<0.08) ins.push({c:'info',t:depthPct+'% \u2014 near 38%'});
+    else ins.push({c:'warn',t:depthPct+'% \u2014 off 38% zone'});
 
-    for(var i=0;i<[0.25,0.33,0.5,0.67,0.75].length;i++){
-        var np=[0.25,0.33,0.5,0.67,0.75][i];
-        if(Math.abs(pos.LP.y/rL-np)<0.03) ins.push({c:'bad',t:'At '+(np*100).toFixed(0)+'% null point!'});
+    var nullPoints=[0.25,0.33,0.5,0.67,0.75];
+    for(var i=0;i<nullPoints.length;i++){
+        if(Math.abs(pos.LP.y/rL-nullPoints[i])<0.03) ins.push({c:'bad',t:'At '+(nullPoints[i]*100).toFixed(0)+'% null!'});
     }
-
     var rear=rL-pos.LP.y;
-    if(rear<0.6) ins.push({c:'bad',t:'Rear wall '+rear.toFixed(2)+'m \u2014 too close'});
-    else if(rear<1.0) ins.push({c:'warn',t:'Rear wall '+rear.toFixed(2)+'m \u2014 tight'});
-
-    if(pos.L.y<0.2) ins.push({c:'warn',t:'Monitors '+pos.L.y.toFixed(2)+'m from front wall'});
+    if(rear<0.6) ins.push({c:'bad',t:'Rear '+rear.toFixed(2)+'m \u2014 too close'});
+    else if(rear<1.0) ins.push({c:'warn',t:'Rear '+rear.toFixed(2)+'m \u2014 tight'});
+    if(pos.L.y<0.2) ins.push({c:'warn',t:'Front gap '+pos.L.y.toFixed(2)+'m'});
 
     document.getElementById('insights').innerHTML=ins.map(function(i){
         return '<div class="sp-badge '+i.c+'"><span class="dot"></span>'+i.t+'</div>';
@@ -383,13 +399,13 @@ function updateAnalysis(){
     var sbirs=[];
     [['L',pos.L],['R',pos.R]].forEach(function(pair){
         var name=pair[0], sp=pair[1];
-        var walls={'front':sp.y, 'left':sp.x, 'right':rW-sp.x, 'floor':1.2, 'ceiling':rH-1.2};
+        var walls={'front':sp.y,'left':sp.x,'right':rW-sp.x,'floor':1.2,'ceiling':rH-1.2};
         var wn={'front':'Front','left':'Left','right':'Right','floor':'Floor','ceiling':'Ceil'};
         for(var w in walls){
             var d=walls[w];
             if(d>0){var f=C/(4*d);if(f>40&&f<300){
                 var sev=f<100?'bad':f<200?'warn':'ok';
-                sbirs.push({c:sev,t:name+' \u2192 '+wn[w]+': '+f.toFixed(0)+' Hz ('+d.toFixed(2)+'m)'});
+                sbirs.push({c:sev,t:name+'\u2192'+wn[w]+' '+f.toFixed(0)+'Hz ('+d.toFixed(2)+'m)'});
             }}
         }
     });
@@ -421,25 +437,60 @@ function updateAnalysis(){
     }).join('');
 }
 
-/* ─── Depth chart ─── */
+/* ═══════════════════════════════════════════════════════
+   DEPTH CHART — clickable bars
+   ═══════════════════════════════════════════════════════ */
 function buildDepthChart(){
     if(!candidates.length)return;
     var cvs=document.getElementById('depth-chart');
     if(depthChart)depthChart.destroy();
-    /* Sort by depth for display */
-    var sorted=candidates.slice().sort(function(a,b){return a.depth_pct-b.depth_pct;});
-    var labels=sorted.map(function(c){return c.depth_pct.toFixed(0)+'%';});
-    var scores=sorted.map(function(c){return c.score;});
+    sortedCandidates=candidates.slice().sort(function(a,b){return a.depth_pct-b.depth_pct;});
+    var labels=sortedCandidates.map(function(c){return c.depth_pct.toFixed(0)+'%';});
+    var scores=sortedCandidates.map(function(c){return c.score;});
     var maxScore=Math.max.apply(null,scores);
-    var colors=sorted.map(function(c){return c.score>=maxScore-2?'rgba(22,163,74,.75)':c.score>=maxScore*0.75?'rgba(217,119,6,.6)':'rgba(100,116,107,.35)';});
-    depthChart=new Chart(cvs,{type:'bar',data:{labels:labels,datasets:[{data:scores,backgroundColor:colors,borderRadius:3,barPercentage:.7}]},
-        options:{responsive:true,maintainAspectRatio:false,
-            plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return 'Score: '+c.raw.toFixed(0)+'/100';}}}},
-            scales:{x:{ticks:{font:{size:8},color:'#5a8a6e',maxRotation:0},grid:{display:false}},
-                    y:{display:false,beginAtZero:true,max:100}}}});
+    var colors=sortedCandidates.map(function(c){
+        return c.score>=maxScore-2?'rgba(22,163,74,.8)':c.score>=maxScore*0.75?'rgba(217,119,6,.6)':'rgba(100,116,107,.3)';
+    });
+    depthChart=new Chart(cvs,{
+        type:'bar',
+        data:{labels:labels,datasets:[{data:scores,backgroundColor:colors,borderRadius:3,barPercentage:.7}]},
+        options:{
+            responsive:true,maintainAspectRatio:false,
+            onClick:function(evt,elements){
+                if(elements.length>0){
+                    var idx=elements[0].index;
+                    var cand=sortedCandidates[idx];
+                    applyCandidate(cand);
+                    drawAll();
+                    highlightBar(idx);
+                }
+            },
+            onHover:function(evt,elements){
+                cvs.style.cursor=elements.length>0?'pointer':'default';
+            },
+            plugins:{legend:{display:false},tooltip:{callbacks:{label:function(c){return 'Score: '+c.raw.toFixed(0)+'/100 \u2014 click to apply';}}}},
+            scales:{
+                x:{ticks:{font:{size:7},color:'#5a8a6e',maxRotation:0},grid:{display:false}},
+                y:{display:false,beginAtZero:true,max:100}
+            }
+        }
+    });
 }
 
-/* ─── Drag ─── */
+function highlightBar(selectedIdx){
+    if(!depthChart||!sortedCandidates.length)return;
+    var maxScore=Math.max.apply(null,sortedCandidates.map(function(c){return c.score;}));
+    var newColors=sortedCandidates.map(function(c,i){
+        if(i===selectedIdx) return 'rgba(22,163,74,1)';
+        return c.score>=maxScore-2?'rgba(22,163,74,.35)':c.score>=maxScore*0.75?'rgba(217,119,6,.25)':'rgba(100,116,107,.15)';
+    });
+    depthChart.data.datasets[0].backgroundColor=newColors;
+    depthChart.update('none');
+}
+
+/* ═══════════════════════════════════════════════════════
+   DRAG
+   ═══════════════════════════════════════════════════════ */
 var dragTarget=null;
 
 function hitTest(cx,cy,p,r){return Math.hypot(tX(p.x)-cx,tY(p.y)-cy)<r;}
@@ -449,9 +500,9 @@ canvas.addEventListener('pointerdown',function(e){
     var sx=canvas._logW/rect.width, sy=canvas._logH/rect.height;
     var cx=(e.clientX-rect.left)*sx, cy=(e.clientY-rect.top)*sy;
 
-    if(hitTest(cx,cy,pos.LP,16)){dragTarget='LP';}
-    else if(hitTest(cx,cy,pos.L,16)||hitTest(cx,cy,pos.R,16)){dragTarget='monitors';}
-    else if(hitTest(cx,cy,pos.S,16)){dragTarget='S';}
+    if(hitTest(cx,cy,pos.LP,15)){dragTarget='LP';}
+    else if(hitTest(cx,cy,pos.L,15)||hitTest(cx,cy,pos.R,15)){dragTarget='monitors';}
+    else if(hitTest(cx,cy,pos.S,15)){dragTarget='S';}
     else{dragTarget=null;return;}
     canvas.setPointerCapture(e.pointerId);
     canvas.style.cursor='grabbing';
@@ -483,7 +534,7 @@ canvas.addEventListener('pointermove',function(e){
 
 canvas.addEventListener('pointerup',function(){dragTarget=null;canvas.style.cursor='grab';});
 
-/* Resize handler */
+/* Resize */
 var resizeTimer;
 window.addEventListener('resize',function(){
     if(!roomData)return;
