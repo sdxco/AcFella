@@ -40,7 +40,7 @@
         <div>
             <div class="card" style="margin-bottom:1rem;">
                 <h3>Absorption Coefficient α vs Frequency</h3>
-                <canvas id="abs-chart" style="width:100%;height:340px;"></canvas>
+                <div style="position:relative;height:340px;"><canvas id="abs-chart"></canvas></div>
             </div>
             <div id="abs-summary" class="card" style="display:none;">
                 <h4>Summary</h4>
@@ -49,8 +49,6 @@
         </div>
     </div>
 </main>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3/dist/chart.min.js"></script>
 {% endblock %}
 
 {% block extra_js %}
