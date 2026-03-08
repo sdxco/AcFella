@@ -378,7 +378,8 @@ def calculate_speaker_placement():
         width = float(data['width'])
         height = float(data['height'])
         use_metric = data.get('unit', 'metric') == 'metric'
-        optimizer = SpeakerPlacementOptimizer(length, width, height, use_metric)
+        speaker_z = float(data['speaker_z']) if 'speaker_z' in data else None
+        optimizer = SpeakerPlacementOptimizer(length, width, height, use_metric, speaker_z=speaker_z)
         result = optimizer.optimize()
         return jsonify({"success": True, **result})
     except Exception as e:

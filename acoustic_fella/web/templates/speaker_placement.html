@@ -62,6 +62,8 @@
 
 /* Depth chart */
 .depth-wrap{height:90px;}
+/* Canvas hover tooltip */
+.sp-tooltip{position:absolute;background:rgba(10,26,19,.94);border:1px solid rgba(34,197,94,.25);border-radius:5px;padding:5px 8px;pointer-events:none;opacity:0;transition:opacity .12s;font:600 .68rem/1.45 Inter,system-ui,sans-serif;color:#c0dece;white-space:pre-line;z-index:5;}
 /* Sub options grid */
 .sub-grid{display:flex;flex-direction:column;gap:4px;}
 .sub-opt{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:5px;font-size:.73rem;cursor:pointer;transition:all .15s;border:1px solid transparent;}
@@ -86,6 +88,7 @@
         <div class="form-group" style="margin:0;flex:1;min-width:70px;"><label style="font-size:.7rem;">Length (front-rear)</label><input type="number" id="sp-length" step="0.01" min="1" max="30" value="{{ project.geometry.length if project and project.geometry else '4.20' }}" required></div>
         <div class="form-group" style="margin:0;flex:1;min-width:70px;"><label style="font-size:.7rem;">Width (left-right)</label><input type="number" id="sp-width" step="0.01" min="1" max="30" value="{{ project.geometry.width if project and project.geometry else '2.83' }}" required></div>
         <div class="form-group" style="margin:0;flex:1;min-width:70px;"><label style="font-size:.7rem;">Height</label><input type="number" id="sp-height" step="0.01" min="1" max="10" value="{{ project.geometry.height if project and project.geometry else '2.41' }}" required></div>
+        <div class="form-group" style="margin:0;flex:1;min-width:70px;"><label style="font-size:.7rem;">Monitor Z (ear height)</label><input type="number" id="sp-speaker-z" step="0.01" min="0.5" max="3" value="1.20" title="Acoustic axis height of monitors / seated ear height (m). Affects floor/ceiling SBIR and height modes."></div>
         <button type="submit" class="btn btn-primary" style="height:36px;padding:0 1.2rem;white-space:nowrap;">Calculate</button>
         <button type="button" id="snap-tri" class="sp-snap-btn" onclick="snapPerfectTriangle()" style="display:none;" title="Snap to equilateral triangle (60°)">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 3 2 21 22 21"/></svg>
@@ -107,6 +110,7 @@
                 <div class="canvas-wrap" id="canvas-wrap">
                     <canvas id="room-canvas"></canvas>
                     <div class="sp-hud" id="sp-hud"></div>
+                    <div class="sp-tooltip" id="sp-tooltip"></div>
                 </div>
             </div>
             <!-- Right: scrollable analysis panels -->
@@ -178,7 +182,7 @@
    ═══════════════════════════════════════════════════════ */
 var roomData=null, candidates=[], sortedCandidates=[], subOpts=[], recommendations=[];
 var pos={L:{},R:{},LP:{},S:{}};
-var speakerY=0, C=344, depthChart=null;
+var speakerY=0, speakerZ=1.2, C=344, depthChart=null;
 var canvas=document.getElementById('room-canvas');
 var ctx=canvas.getContext('2d');
 var PAD=48;
@@ -188,15 +192,18 @@ var PAD=48;
    ═══════════════════════════════════════════════════════ */
 function compute(e){
     e.preventDefault();
+    speakerZ=+document.getElementById('sp-speaker-z').value||1.2;
     var body={length:+document.getElementById('sp-length').value,
               width:+document.getElementById('sp-width').value,
-              height:+document.getElementById('sp-height').value, unit:'metric'};
+              height:+document.getElementById('sp-height').value,
+              speaker_z:speakerZ, unit:'metric'};
     fetch('/api/speaker-placement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(d){
         if(!d.success){alert(d.error);return;}
         roomData=d.room; candidates=d.candidates; subOpts=d.sub_options;
         recommendations=d.recommendations||[];
         speakerY=d.speaker_y;
+        if(d.speaker_z) speakerZ=d.speaker_z;
         applyCandidate(d.best);
         document.getElementById('sp-results').style.display='';
         document.getElementById('snap-tri').style.display='';
@@ -213,7 +220,9 @@ function applyCandidate(c){
     pos.L={x:c.placement.left_speaker.x, y:c.placement.left_speaker.y};
     pos.R={x:c.placement.right_speaker.x, y:c.placement.right_speaker.y};
     pos.LP={x:c.placement.listening_position.x, y:c.placement.listening_position.y};
-    if(!pos.S||!pos.S.x) pos.S=subOpts.length?{x:subOpts[0].x,y:subOpts[0].y}:{x:roomData.width/2,y:0.1};
+    /* Auto-move sub to best scored position */
+    if(subOpts.length){ activeSubIdx=0; pos.S={x:subOpts[0].x,y:subOpts[0].y}; }
+    else if(!pos.S||!pos.S.x) pos.S={x:roomData.width/2,y:0.1};
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -417,11 +426,11 @@ function updateAnalysis(){
         return '<div class="sp-badge '+i.c+'"><span class="dot"></span>'+i.t+'</div>';
     }).join('');
 
-    /* SBIR */
+    /* SBIR — uses speakerZ for floor/ceiling */
     var sbirs=[];
     [['L',pos.L],['R',pos.R]].forEach(function(pair){
         var name=pair[0], sp=pair[1];
-        var walls={'front':sp.y,'left':sp.x,'right':rW-sp.x,'floor':1.2,'ceiling':rH-1.2};
+        var walls={'front':sp.y,'left':sp.x,'right':rW-sp.x,'floor':speakerZ,'ceiling':rH-speakerZ};
         var wn={'front':'Front','left':'Left','right':'Right','floor':'Floor','ceiling':'Ceil'};
         for(var w in walls){
             var d=walls[w];
@@ -435,10 +444,9 @@ function updateAnalysis(){
         ?'<div class="sp-badge ok"><span class="dot"></span>No significant SBIR</div>'
         :sbirs.map(function(s){return '<div class="sp-badge '+s.c+'"><span class="dot"></span>'+s.t+'</div>';}).join('');
 
-    /* Mode response */
-    var earH=1.2;
+    /* Mode response — Height uses speakerZ (monitor acoustic axis / ear height) */
     var modes=[];
-    [['Length',rL,pos.LP.y],['Width',rW,pos.LP.x],['Height',rH,earH]].forEach(function(arr){
+    [['Length',rL,pos.LP.y],['Width',rW,pos.LP.x],['Height',rH,speakerZ]].forEach(function(arr){
         var dim=arr[0],len=arr[1],p=arr[2];
         for(var n=1;n<=4;n++){
             var freq=n*C/(2*len);if(freq>500)continue;
@@ -448,15 +456,24 @@ function updateAnalysis(){
             modes.push({dim:dim,n:n,freq:freq.toFixed(0),pct:pct,c:cl,tag:tag});
         }
     });
-    document.getElementById('mode-list').innerHTML=modes.map(function(m){
+    /* Add explanatory note for static axes */
+    var modeHtml=modes.map(function(m){
         var col=m.c==='bad'?'#dc2626':m.c==='warn'?'#d97706':'#16a34a';
-        return '<div class="mode-row">'
+        var note='';
+        if(m.dim==='Width') note=' title="Width modes depend on LP lateral position (center-locked for stereo symmetry)"';
+        if(m.dim==='Height') note=' title="Height modes depend on monitor Z height (set in the input above)"';
+        return '<div class="mode-row"'+note+'>'
             +'<span class="mode-label">'+m.dim[0]+' f'+m.n+' '+m.freq+'Hz</span>'
             +'<div class="mode-bar"><div class="mode-bar-fill" style="width:'+m.pct+'%;background:'+col+';"></div></div>'
             +'<span class="mode-val" style="color:'+col+';">'+m.pct+'%</span>'
             +'<span class="mode-tag" style="color:'+col+';">'+m.tag+'</span>'
             +'</div>';
     }).join('');
+    /* Footnote explaining static W/H */
+    modeHtml+='<div style="font-size:.62rem;color:var(--text-muted);margin-top:4px;line-height:1.4;">'
+        +'W modes: static (LP center-locked for symmetry). '
+        +'H modes: change via Monitor Z input above.</div>';
+    document.getElementById('mode-list').innerHTML=modeHtml;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -485,6 +502,7 @@ function buildDepthChart(){
                     applyCandidate(cand);
                     drawAll();
                     highlightBar(idx);
+                    renderSubOpts();
                 }
             },
             onHover:function(evt,elements){
@@ -559,6 +577,8 @@ function snapPerfectTriangle(){
     pos.L={x:Math.max(minSide,cx-spread/2), y:speakerY};
     pos.R={x:Math.min(rW-minSide,cx+spread/2), y:speakerY};
     pos.LP={x:cx, y:speakerY+depth};
+    /* Also snap sub to best position */
+    if(subOpts.length){ activeSubIdx=0; pos.S={x:subOpts[0].x,y:subOpts[0].y}; renderSubOpts(); }
     drawAll();
 }
 
@@ -630,6 +650,58 @@ canvas.addEventListener('pointermove',function(e){
 });
 
 canvas.addEventListener('pointerup',function(){dragTarget=null;canvas.style.cursor='grab';hideHud();});
+
+/* ═══════════════════════════════════════════════════════
+   HOVER TOOLTIPS — show coordinates when not dragging
+   ═══════════════════════════════════════════════════════ */
+var tooltip=document.getElementById('sp-tooltip');
+canvas.addEventListener('pointermove',function(e){
+    if(dragTarget||!roomData)return;
+    var rect=canvas.getBoundingClientRect();
+    var sx=canvas._logW/rect.width, sy=canvas._logH/rect.height;
+    var cx=(e.clientX-rect.left)*sx, cy=(e.clientY-rect.top)*sy;
+    var rW=roomData.width, rL=roomData.length, rH=roomData.height;
+    var hit=null, label='', lines=[];
+
+    if(hitTest(cx,cy,pos.L,16)){ hit=pos.L; label='Left Monitor';
+        lines=['X: '+pos.L.x.toFixed(2)+'m from left wall',
+               'Y: '+pos.L.y.toFixed(2)+'m from front wall',
+               'Z: '+speakerZ.toFixed(2)+'m (monitor height)',
+               'Side wall: '+pos.L.x.toFixed(2)+'m'];
+    } else if(hitTest(cx,cy,pos.R,16)){ hit=pos.R; label='Right Monitor';
+        lines=['X: '+pos.R.x.toFixed(2)+'m from left wall',
+               'Y: '+pos.R.y.toFixed(2)+'m from front wall',
+               'Z: '+speakerZ.toFixed(2)+'m (monitor height)',
+               'Side wall: '+(rW-pos.R.x).toFixed(2)+'m'];
+    } else if(hitTest(cx,cy,pos.LP,16)){ hit=pos.LP; label='Listening Position';
+        lines=['X: '+pos.LP.x.toFixed(2)+'m (centered)',
+               'Y: '+pos.LP.y.toFixed(2)+'m from front wall',
+               'Rear: '+(rL-pos.LP.y).toFixed(2)+'m',
+               'Side: '+pos.LP.x.toFixed(2)+' / '+(rW-pos.LP.x).toFixed(2)+'m'];
+    } else if(hitTest(cx,cy,pos.S,16)){ hit=pos.S; label='Subwoofer';
+        lines=['X: '+pos.S.x.toFixed(2)+'m from left wall',
+               'Y: '+pos.S.y.toFixed(2)+'m from front wall',
+               'Right wall: '+(rW-pos.S.x).toFixed(2)+'m',
+               'Rear wall: '+(rL-pos.S.y).toFixed(2)+'m'];
+    }
+    if(hit){
+        tooltip.textContent=label+'\n'+lines.join('\n');
+        /* Position tooltip near the object */
+        var wrap=document.getElementById('canvas-wrap');
+        var wrapRect=wrap.getBoundingClientRect();
+        var tipX=e.clientX-wrapRect.left+12;
+        var tipY=e.clientY-wrapRect.top-10;
+        tooltip.style.left=tipX+'px';
+        tooltip.style.top=tipY+'px';
+        tooltip.style.opacity='1';
+        canvas.style.cursor='pointer';
+    } else {
+        tooltip.style.opacity='0';
+        canvas.style.cursor='grab';
+    }
+});
+canvas.addEventListener('pointerleave',function(){tooltip.style.opacity='0';});
+canvas.addEventListener('pointerdown',function(){tooltip.style.opacity='0';});
 
 /* Resize */
 var resizeTimer;

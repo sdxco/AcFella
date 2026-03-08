@@ -80,14 +80,14 @@ class SpeakerPlacementOptimizer:
     """
 
     def __init__(self, length: float, width: float, height: float,
-                 use_metric: bool = True):
+                 use_metric: bool = True, speaker_z: float = None):
         self.length = length   # front-back (depth)
         self.width = width     # left-right
         self.height = height
         self.use_metric = use_metric
         self.unit = "m" if use_metric else "ft"
         self.c = C_METRIC if use_metric else C_IMPERIAL
-        self.ear_h = EAR_H_M if use_metric else EAR_H_FT
+        self.ear_h = speaker_z if speaker_z is not None else (EAR_H_M if use_metric else EAR_H_FT)
 
     # ── helpers ───────────────────────────────────────────────
 
@@ -317,6 +317,7 @@ class SpeakerPlacementOptimizer:
             "room": {"length": self.length, "width": self.width,
                      "height": self.height, "unit": self.unit},
             "speaker_y": round(speaker_y, 3),
+            "speaker_z": round(self.ear_h, 3),
             "best": best,
             "candidates": candidates,
             "sub_options": sub_options,
