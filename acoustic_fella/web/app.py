@@ -378,15 +378,9 @@ def calculate_speaker_placement():
         width = float(data['width'])
         height = float(data['height'])
         use_metric = data.get('unit', 'metric') == 'metric'
-        speaker_type = data.get('speaker_type', 'nearfield')
         optimizer = SpeakerPlacementOptimizer(length, width, height, use_metric)
-        options = optimizer.generate_three_options(speaker_type)
-        unit = "m" if use_metric else "ft"
-        return jsonify({
-            "success": True,
-            "options": options,
-            "room": {"length": length, "width": width, "height": height, "unit": unit}
-        })
+        result = optimizer.optimize()
+        return jsonify({"success": True, **result})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
