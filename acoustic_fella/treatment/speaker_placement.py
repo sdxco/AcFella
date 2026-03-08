@@ -451,14 +451,17 @@ class SpeakerPlacementOptimizer:
         # ── Sub Recommendation ────────────────────────────
         f1_L = self.c / (2 * L)
         f1_W = self.c / (2 * W)
+        sub_positions = self._sub_positions()
+        best_sub = sub_positions[0] if sub_positions else None
         recs.append({
             "type": "sub",
             "title": "Subwoofer Placement",
-            "detail": (f"Front-wall center ({W / 2:.2f}{unit} from left, flush to front wall): "
-                       f"drives all length modes evenly — smoothest response. "
-                       f"Corner placement maximises output (+6-9dB) but excites all modes unevenly. "
-                       f"Quarter-width placement ({W * 0.25:.2f}{unit} from left) avoids the 1st width-mode "
-                       f"peak at center. First axial modes: {f1_L:.0f}Hz (length), {f1_W:.0f}Hz (width)."),
+            "detail": (f"Best position: {best_sub['name']} (score {best_sub['score']:.0f}/100) — "
+                       f"{best_sub['note']}. "
+                       f"First axial modes: {f1_L:.0f}Hz (length), {f1_W:.0f}Hz (width). "
+                       f"Use the sub position selector to compare all {len(sub_positions)} evaluated positions.") if best_sub else
+                      (f"First axial modes: {f1_L:.0f}Hz (length), {f1_W:.0f}Hz (width). "
+                       f"Place sub at front wall center for smoothest response."),
             "metric": f"{f1_L:.0f}Hz",
         })
 
@@ -482,15 +485,111 @@ class SpeakerPlacementOptimizer:
         return recs
 
     def _sub_positions(self) -> List[Dict]:
-        """Recommended subwoofer positions with explanations."""
-        return [
-            {"name": "Front center", "x": round(self.width / 2, 3), "y": 0.1,
-             "note": "Drives all length modes evenly — smoothest response"},
-            {"name": "Front corner", "x": 0.15, "y": 0.15,
-             "note": "Maximum output (+6-9dB), excites all modes — least flat"},
-            {"name": "Front quarter-width", "x": round(self.width * 0.25, 3), "y": 0.1,
-             "note": "Avoids 1st width-mode peak at center — good compromise"},
+        """
+        Research-backed subwoofer position evaluator.
+
+        Evaluates candidate positions based on:
+          - Mode coupling evenness (std-dev of pressure across room modes)
+          - Boundary gain (quarter/half/full-space loading)
+          - Length-mode drive (should excite all length modes)
+          - Width-mode decoupling (avoid center-width resonance buildup)
+
+        Key references:
+          - Everest & Pohlmann, "Master Handbook of Acoustics" 7th ed:
+            Front-wall center drives all length modes evenly.
+            Corner placement gives +9 dB (eighth-space) but excites all modes.
+          - Cox & D'Antonio, "Acoustic Absorbers and Diffusers" 3rd ed:
+            Asymmetric placement reduces mode reinforcement pile-up.
+          - Toole, "Sound Reproduction" 3rd ed:
+            Multiple subs at opposing midpoints cancel odd-order modes.
+          - Allison effect: SBIR dip at f=c/(4d) from nearest boundary.
+        """
+        L, W, H = self.length, self.width, self.height
+        c = self.c
+        u = self.unit
+
+        # Collect axial and tangential modes up to 200 Hz
+        modes = []
+        for p in range(0, 5):
+            for q in range(0, 5):
+                for r in range(0, 4):
+                    if p + q + r == 0:
+                        continue
+                    f = (c / 2) * np.sqrt((p / L) ** 2 + (q / W) ** 2 + (r / H) ** 2)
+                    if f > 200:
+                        continue
+                    modes.append((p, q, r, f))
+
+        def score_position(x: float, y: float, z: float = 0.1) -> float:
+            """Score a sub position 0–100 based on mode coupling evenness."""
+            pressures = []
+            for p_m, q_m, r_m, freq in modes:
+                # Standing wave pressure: product of cos terms
+                pr = 1.0
+                if p_m > 0:
+                    pr *= abs(np.cos(p_m * np.pi * y / L))
+                if q_m > 0:
+                    pr *= abs(np.cos(q_m * np.pi * x / W))
+                if r_m > 0:
+                    pr *= abs(np.cos(r_m * np.pi * z / H))
+                pressures.append(pr)
+
+            if not pressures:
+                return 50.0
+
+            arr = np.array(pressures)
+            mean_p = float(np.mean(arr))
+            std_p = float(np.std(arr))
+
+            # Evenness score — lower std relative to mean = more even
+            evenness = max(0, 1 - std_p / max(mean_p, 0.01))
+
+            # Mean coupling — we want decent coupling (not at a null)
+            coupling = min(1.0, mean_p / 0.6)
+
+            # Boundary gain bonus — closer to walls = more loading
+            walls = [y, x, W - x, z, H - z]
+            near_walls = sum(1 for d in walls if d < 0.25)
+            gain_bonus = near_walls * 0.04  # +4% per nearby wall
+
+            score = 40 * evenness + 40 * coupling + 20 * gain_bonus
+            return round(min(100, max(10, score)), 1)
+
+        # Candidate positions (research-backed)
+        candidates = [
+            {
+                "name": "Front wall center",
+                "x": round(W / 2, 3), "y": 0.08,
+                "note": f"Drives all length modes evenly, null on 1st width mode — smoothest single-sub position (Everest/Toole)",
+            },
+            {
+                "name": "Front wall quarter-width",
+                "x": round(W * 0.25, 3), "y": 0.08,
+                "note": f"Avoids 1st width-mode center peak, good length coupling — balanced compromise",
+            },
+            {
+                "name": "Front corner (left)",
+                "x": 0.12, "y": 0.12,
+                "note": f"Eighth-space loading (+9 dB max output) — excites all modes; least flat but loudest",
+            },
+            {
+                "name": "Front wall third-width",
+                "x": round(W / 3, 3), "y": 0.08,
+                "note": f"Decouples from 1st and 3rd width modes — even response when width modes are problematic",
+            },
+            {
+                "name": "Side wall midpoint",
+                "x": 0.08, "y": round(L * 0.38, 3),
+                "note": f"38% depth drives length modes from the side — use when front wall is blocked",
+            },
         ]
+
+        # Score each and sort
+        for cand in candidates:
+            cand["score"] = score_position(cand["x"], cand["y"], 0.1)
+
+        candidates.sort(key=lambda c: c["score"], reverse=True)
+        return candidates
 
     # ── legacy wrappers kept for other routes ────────────────
 
