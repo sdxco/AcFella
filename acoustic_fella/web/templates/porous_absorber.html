@@ -87,9 +87,8 @@ function delanyBazley(f, d, gap, sigma, c, rho, corner) {
     const ki = -(2 * Math.PI * f / c) * 0.1890 * Math.pow(X, -0.595);
 
     const totalD = corner ? d * 2 : d;
-    const totalGap = gap;
 
-    /* Surface impedance with air gap backing */
+    /* Complex trig of k*d */
     const cosDr = Math.cos(kr * totalD) * Math.cosh(ki * totalD);
     const cosDi = -Math.sin(kr * totalD) * Math.sinh(ki * totalD);
     const sinDr = Math.sin(kr * totalD) * Math.cosh(ki * totalD);
@@ -97,24 +96,33 @@ function delanyBazley(f, d, gap, sigma, c, rho, corner) {
 
     /* Backing impedance (rigid wall + air gap) */
     let Zbr, Zbi;
-    if (totalGap > 0.001) {
+    if (gap > 0.001) {
         const kg = 2 * Math.PI * f / c;
         Zbr = 0;
-        Zbi = -rho * c / Math.tan(kg * totalGap);
+        Zbi = -rho * c / Math.tan(kg * gap);
     } else {
-        /* Rigid backing */
         Zbr = 1e10; Zbi = 0;
     }
 
-    /* Transfer matrix method simplified: assume plane wave */
-    const denom2 = sinDr*sinDr + sinDi*sinDi + 1e-30;
-    const numR = Zr*cosDr - Zi*cosDi + Zbr;
-    const numI = Zr*cosDi + Zi*cosDr + Zbi;
-    const denR = sinDr; const denI = sinDi;
+    /* Transfer matrix: Zs = Zc * (Zb*cos(kd) + j*Zc*sin(kd)) / (Zc*cos(kd) + j*Zb*sin(kd)) */
+    /* Numerator: N = Zb*cos(kd) + j*Zc*sin(kd) */
+    const Nr = Zbr*cosDr - Zbi*cosDi - (Zr*sinDi + Zi*sinDr);
+    const Ni = Zbr*cosDi + Zbi*cosDr + (Zr*sinDr - Zi*sinDi);
 
-    /* Zs = Zc * (Zb*cos(kd) + jZc*sin(kd)) / (Zc*cos(kd) + jZb*sin(kd)) */
-    /* Simplified: compute reflection coefficient */
-    const ZsR = numR, ZsI = numI;
+    /* Denominator: D = Zc*cos(kd) + j*Zb*sin(kd) */
+    const Dr = Zr*cosDr - Zi*cosDi - (Zbr*sinDi + Zbi*sinDr);
+    const Di = Zr*cosDi + Zi*cosDr + (Zbr*sinDr - Zbi*sinDi);
+
+    /* N/D complex division */
+    const Dmag2 = Dr*Dr + Di*Di + 1e-30;
+    const Qr = (Nr*Dr + Ni*Di) / Dmag2;
+    const Qi = (Ni*Dr - Nr*Di) / Dmag2;
+
+    /* Zs = Zc * Q */
+    const ZsR = Zr*Qr - Zi*Qi;
+    const ZsI = Zr*Qi + Zi*Qr;
+
+    /* Reflection coefficient -> absorption */
     const diffR = ZsR - rho*c;
     const diffI = ZsI;
     const sumR  = ZsR + rho*c;
